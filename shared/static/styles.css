@@ -1,0 +1,175 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --ink: #172033;
+  --muted: #61708a;
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --border: #dbe3ef;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+header,
+article {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgb(23 32 51 / 8%);
+}
+
+header {
+  padding: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+#subtitle {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+button {
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 12px 18px;
+}
+
+button:hover,
+button:focus-visible {
+  background: var(--accent-dark);
+}
+
+form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+
+input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font: inherit;
+  padding: 0 14px;
+}
+
+#status {
+  color: var(--muted);
+  min-height: 1.5rem;
+}
+
+.grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+}
+
+article {
+  padding: 22px;
+}
+
+article:first-child {
+  grid-row: span 2;
+}
+
+.pane {
+  min-height: 180px;
+  max-height: 460px;
+  overflow: auto;
+  padding-top: 14px;
+}
+
+.bubble {
+  border-radius: 14px;
+  margin: 0 0 10px;
+  max-width: 86%;
+  padding: 10px 12px;
+}
+
+.bubble.user {
+  background: #e0ecff;
+  margin-left: auto;
+}
+
+.bubble.assistant {
+  background: #eef2f7;
+}
+
+.tool-entry {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.metrics div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+dt {
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+.sr-only {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+@media (max-width: 800px) {
+  .controls,
+  form {
+    flex-direction: column;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.azure/
+.env
+.env.*
+*.local.json
+*.local.*
+demo-ids.json
+*.pem
+*.key
+secrets.json
+.sp-secret.json
+loadtest/results*.json
+.vscode/
+node_modules/
+*.what-if.json

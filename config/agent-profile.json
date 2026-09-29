@@ -1,0 +1,76 @@
+{
+  "_note": "The ONLY domain-specific surface in this repo. Retarget the demo by editing this file and config/sample-data.json. All three examples use it: Voice Live and Realtime read it at startup (AGENT_PROFILE_PATH), while the Foundry voice agent reads it at agent-creation time when the postprovision hook publishes a version.",
+  "assistant_name": "Contoso Service Desk Assistant",
+  "instructions": "You are a friendly voice-first assistant. Keep spoken answers to one or two sentences, use tools for status lookups, call search_knowledge_base before answering any how-to or policy question and answer only from what it returns, never invent data, and offer a human handoff when you cannot help.",
+  "greeting": "Hi, I can help check a service request status or answer a quick question. How can I help?",
+  "tools": [
+    {
+      "name": "lookup_request_status",
+      "description": "Look up the current status of a service request by request id.",
+      "handler": "record_lookup",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "e.g. SR-1001"
+          }
+        },
+        "required": [
+          "request_id"
+        ]
+      },
+      "handler_config": {
+        "data_file": "sample-data.json",
+        "collection": "records",
+        "key_field": "id",
+        "argument": "request_id"
+      }
+    },
+    {
+      "name": "get_current_time",
+      "description": "Get the current date and time for a requested timezone.",
+      "handler": "current_time",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "description": "IANA tz, e.g. America/Chicago"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "search_knowledge_base",
+      "description": "Search the service desk knowledge base for how-to steps, policies, and support hours. Use before answering any factual or how-to question.",
+      "handler": "knowledge_search",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Short search phrase, e.g. reset my password"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "handler_config": {
+        "local_file": "knowledge-base.json",
+        "collection": "documents",
+        "title_field": "title",
+        "content_field": "content",
+        "source_field": "source",
+        "top": 3,
+        "max_chars": 600,
+        "timeout_seconds": 4
+      }
+    }
+  ],
+  "conversation": {
+    "max_history_items": null
+  }
+}

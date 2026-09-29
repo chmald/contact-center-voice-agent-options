@@ -1,0 +1,39 @@
+{
+  "records": [
+    {
+      "id": "SR-1001",
+      "status": "In progress",
+      "summary": "Access review is awaiting a final approval step.",
+      "last_updated": "2026-09-24",
+      "owner_team": "Access Operations"
+    },
+    {
+      "id": "SR-1002",
+      "status": "Resolved",
+      "summary": "Configuration update was completed and verified.",
+      "last_updated": "2026-09-22",
+      "owner_team": "Platform Support"
+    },
+    {
+      "id": "SR-1003",
+      "status": "Waiting on requester",
+      "summary": "Additional details are needed before work can continue.",
+      "last_updated": "2026-09-23",
+      "owner_team": "Intake Desk"
+    },
+    {
+      "id": "SR-1004",
+      "status": "Scheduled",
+      "summary": "Maintenance window is scheduled for the next business day.",
+      "last_updated": "2026-09-25",
+      "owner_team": "Service Engineering"
+    },
+    {
+      "id": "SR-1005",
+      "status": "Under review",
+      "summary": "Support team is validating impact and next steps.",
+      "last_updated": "2026-09-25",
+      "owner_team": "Support Coordination"
+    }
+  ]
+}

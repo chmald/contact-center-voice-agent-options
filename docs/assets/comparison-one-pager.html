@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Live API vs Realtime API GA comparison</title>
+  <style>
+    @page { size: Letter; margin: 0.36in; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #201f1e;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      font-size: 7.6pt;
+      line-height: 1.18;
+      background: #fff;
+    }
+    h1 { margin: 0 0 3px; color: #0078D4; font-size: 15pt; line-height: 1.05; }
+    h2 { margin: 7px 0 3px; color: #0078D4; font-size: 9.2pt; line-height: 1.05; border-bottom: 1px solid #deecf9; }
+    h3 { margin: 5px 0 2px; font-size: 8.2pt; color: #323130; }
+    p { margin: 2px 0 4px; }
+    code { font-family: Consolas, "Courier New", monospace; font-size: 92%; color: #323130; }
+    .bottom { margin-bottom: 5px; font-size: 8.4pt; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; align-items: start; }
+    .box { border: 1px solid #c7e0f4; border-left: 4px solid #0078D4; border-radius: 4px; padding: 5px 6px; background: #f8fbff; }
+    ul, ol { margin: 2px 0 2px 15px; padding: 0; }
+    li { margin: 1px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 3px 0 5px; page-break-inside: avoid; }
+    th, td { border: 0.6px solid #d2d0ce; padding: 2px 3px; vertical-align: top; }
+    th { background: #deecf9; color: #004578; font-weight: 700; }
+    .compare { font-size: 6.25pt; line-height: 1.08; }
+    .compare th:nth-child(1) { width: 16%; }
+    .compare th:nth-child(2), .compare th:nth-child(3) { width: 42%; }
+    .mini { font-size: 6.5pt; line-height: 1.1; }
+    .callout { background: #fff4ce; border: 1px solid #ffb900; border-radius: 4px; padding: 4px 6px; margin: 4px 0; }
+    .sources { font-size: 5.9pt; color: #605e5c; line-height: 1.08; }
+    .pill { display: inline-block; color: #fff; background: #0078D4; border-radius: 10px; padding: 1px 5px; font-weight: 600; }
+    .nowrap { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <h1>Azure AI Voice Live API vs Azure OpenAI GPT Realtime API (GA deep dive)</h1>
+  <p class="bottom"><strong>Bottom line:</strong> two-GA-API deep dive. The repo also includes a Foundry voice agent public preview; see the root README for the full three-way table. Same model family, same browser app, same Python bridge pattern; the difference is who manages deployment, capacity/quota, voice/audio processing, and lifecycle risk.</p>
+
+  <div class="grid">
+    <div class="box">
+      <h2>Use Voice Live when...</h2>
+      <ul>
+        <li>You want managed models and no model deployment.</li>
+        <li>You prefer per-resource Voice Live limits over per-model deployment quota.</li>
+        <li>You need Azure neural/HD/custom voices, built-in transcription, semantic VAD, noise suppression, echo cancellation, Avatar, BYOM, or agent mode.</li>
+        <li>You can request new-connections/min increases when concurrency requires it.</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h2>Use Realtime when...</h2>
+      <ul>
+        <li>You need model version, deployment name, capacity, and upgrade control.</li>
+        <li>You already have realtime quota and regional capacity.</li>
+        <li>You need the GA nested schema, WebRTC ephemeral tokens, or direct SIP on the realtime surface.</li>
+        <li>You accept no PTU, constrained regions, quota forms, and lifecycle-date management.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout"><strong>Third option:</strong> Foundry voice agent is public preview. It stores instructions, tools, voice, versions, traces, and transcripts in a Foundry project, while the bridge sends only audio pipeline settings and executes tools. It uses Voice Live agent mode and shares Voice Live limits in shared-platform mode; do not position it as production-ready.</div>
+
+  <h2>Core comparison</h2>
+  <table class="compare">
+    <tr><th>Dimension</th><th>Voice Live API</th><th>Realtime API</th></tr>
+    <tr><td>Status / endpoint</td><td>GA <code>2026-07-15</code>; <code>wss://&lt;foundry&gt;.services.ai.azure.com/voice-live/realtime?api-version=...&amp;model=...</code>.</td><td>GA <code>/openai/v1</code>; <code>wss://&lt;resource&gt;.openai.azure.com/openai/v1/realtime?model=&lt;deployment&gt;</code>; no <code>api-version</code>.</td></tr>
+    <tr><td>Provisioning</td><td><code>AIServices</code> S0 resource, custom subdomain, local auth disabled; no model deployment.</td><td><code>AIServices</code> plus <code>accounts/deployments</code> Global Standard model deployment with capacity and version policy.</td></tr>
+    <tr><td>Models</td><td><code>gpt-realtime-mini</code> GA Basic default; <code>gpt-realtime-2.1-mini</code> preview Basic.[4]</td><td><code>gpt-realtime-2.1-mini</code> <code>2026-07-07</code> GA default, retires <code>2027-06-25</code>; <code>gpt-realtime-mini</code> retirement rows conflict.[1]</td></tr>
+    <tr><td>Capacity</td><td>Per resource: <=120K TPM, 100 new connections/min, <=60-min sessions; connection/min support request raises dependent TPM.</td><td>Subscription-level TPM quota per model/global pool; base <code>gpt-realtime</code> default 100K TPM / 200 RPM; no PTU; TPM/unit not documented.[3]</td></tr>
+    <tr><td>Regions</td><td><code>centralus</code>, <code>eastus2</code>, <code>swedencentral</code>, <code>westus2</code> confirmed for demo default; coverage varies.</td><td>Global Standard: <code>canadacentral</code>, <code>centralus</code>, <code>eastus2</code>, <code>francecentral</code>, <code>swedencentral</code>, <code>southindia</code>; DZS conflict.[5]</td></tr>
+    <tr><td>Auth / RBAC</td><td>Scope <code>https://ai.azure.com/.default</code>; Cognitive Services User <code>a97b...908</code> + Foundry User <code>53ca...56d</code>.</td><td>Scope <code>https://ai.azure.com/.default</code>; Cognitive Services OpenAI User <code>5e0b...61bd</code>.</td></tr>
+    <tr><td>Schema / events</td><td>Flat <code>session.update</code>; <code>response.audio.delta</code>, <code>response.audio_transcript.delta</code>, <code>conversation.item.created</code>.</td><td>Nested GA schema; <code>response.output_audio.delta</code>, <code>response.output_audio_transcript.delta</code>, <code>conversation.item.added/.done</code>, <code>rate_limits.updated</code>.</td></tr>
+    <tr><td>Audio features</td><td>Azure/OpenAI voices, Azure semantic VAD, deep noise suppression, server echo cancellation, built-in transcription.</td><td>OpenAI voices, semantic/server VAD, near/far-field noise reduction, optional separate transcription deployment.</td></tr>
+    <tr><td>Transports / extras</td><td>Server WSS in demo; telephony connectors in accelerator; Avatar, BYOM, agent mode, timestamps/visemes.</td><td>Server WSS in demo; WebRTC client secrets, <code>/realtime/calls</code>, SIP in limited regions.</td></tr>
+    <tr><td>Pricing / monitoring</td><td>Per-1M-token Voice Live tiers; mini = Basic; no quoted dollar prices.[2] App metrics to Log Analytics.</td><td><code>2.1-mini</code> Global per 1M: text $0.60/$0.06 cached/$2.40 out; audio $10/$0.30 cached/$20 out. Add Azure OpenAI request/token/seconds metrics.</td></tr>
+  </table>
+
+  <div class="grid">
+    <div>
+      <h2>Code changes</h2>
+      <p><span class="pill">208 lines</span> Voice Live bridge vs <span class="pill">193 lines</span> Realtime bridge.</p>
+      <table class="mini">
+        <tr><th>Hook</th><th>Delta</th></tr>
+        <tr><td><code>build_url</code></td><td>Voice Live adds <code>/voice-live/realtime</code>, <code>api-version</code>, and model query. Realtime adds <code>/openai/v1/realtime</code> and deployment query.</td></tr>
+        <tr><td><code>build_headers</code></td><td>Both use Entra; Realtime scope is env-overridable.</td></tr>
+        <tr><td><code>session.update</code></td><td>Voice Live flat schema + Azure audio features; Realtime nested GA schema + optional transcription deployment.</td></tr>
+        <tr><td>Events</td><td>Shared bridge accepts both audio/item naming families.</td></tr>
+        <tr><td>Infra</td><td>Realtime adds deployment resource, model version map, capacity param, and OpenAI User role. Everything else is shared.</td></tr>
+      </table>
+    </div>
+    <div>
+      <h2>Capacity implication</h2>
+      <p><strong>Formula:</strong> p90 TPM/call x concurrent calls. Example: ~80K TPM/call x 20 calls ~= 1.6M TPM. Both APIs need sizing; Voice Live and the voice agent shift from deployment quota to per-resource connection/TPM limits; in shared mode they share the same limit.</p>
+      <p><strong>Reduce tokens:</strong> shorter instructions/tools, concise spoken answers, history cap/delete, barge-in truncation, and realistic load tests.</p>
+      <div class="callout"><strong>Confirm before cutover:</strong> approved quota/limit increase, validated region capacity, p90 TTFA, busy count, and rollback path.</div>
+    </div>
+  </div>
+
+  <h2>Migration path and reproduction</h2>
+  <div class="grid">
+    <div>
+      <ol>
+        <li>Change endpoint, auth scope if needed, and RBAC.</li>
+        <li>Remove or add model deployment depending on direction.</li>
+        <li>Reshape <code>session.update</code> flat <span class="nowrap">↔</span> nested.</li>
+        <li>Map events; shared bridge already accepts both.</li>
+        <li>Pick voice/VAD/noise/transcription options.</li>
+        <li>Load test; request Voice Live connection increase or Realtime quota before cutover.</li>
+      </ol>
+    </div>
+    <div>
+      <p><strong>First pin the tenant:</strong> <code>az login --tenant &lt;TENANT_ID&gt;</code>, <code>azd auth login --tenant-id &lt;TENANT_ID&gt;</code>, then per example <code>azd env set AZURE_TENANT_ID</code> / <code>AZURE_SUBSCRIPTION_ID</code> / <code>AZURE_LOCATION</code>. Never a bare <code>azd up</code>.</p>
+      <p><strong>Deploy:</strong> <code>cd examples\voice-live-api</code>, <code>cd examples\realtime-api</code>, or <code>cd examples\foundry-voice-agent</code>, then <code>azd up</code>. For the voice agent, profile edits require <code>azd hooks run postprovision</code>.</p>
+      <p>See <code>03-deployment.md</code> and <code>04-testing.md</code>. Keep both behind the same bridge interface until cost, quality, and capacity pass.</p>
+    </div>
+  </div>
+
+  <h2>Sources</h2>
+  <p class="sources">Verified 2026-09-25; preview voice-agent note added 2026-09-29. Sources: Voice Live API reference, overview, release notes, quotas, regions, and pricing pages; Azure OpenAI Realtime how-to, WebRTC how-to, model retirement schedule, quotas/limits, quota management, region availability, pricing page, and Azure Retail Prices API. Repo code inspected: both bridges, both <code>resources.bicep</code>, both <code>azure.yaml</code>, both READMEs, and shared bridge. Re-verify model lifecycle, regions, quota, and pricing before customer use. Footnotes: [1] retirement conflict; [2] no Voice Live dollars quoted; [3] realtime TPM/unit gap; [4] Voice Live 2.1-mini preview; [5] DZS availability conflict.</p>
+</body>
+</html>

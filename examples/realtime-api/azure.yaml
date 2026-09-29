@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: realtime-api-agent
+metadata:
+  template: voice-live-vs-realtime-api-realtime@1.0.0
+services:
+  web:
+    project: .
+    language: python
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: ../..
+      remoteBuild: true
+hooks:
+  preprovision:
+    shell: pwsh
+    run: hooks/preprovision.ps1
+    continueOnError: false
+    interactive: false

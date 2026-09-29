@@ -1,0 +1,63 @@
+{
+  "_template": true,
+  "_note": "Human reference and local dry-runs only. Pipelines and azd do not read this at runtime; azd keeps deployed values in .azure/<env>/.env. Copy to demo-ids.local.json for local notes and never commit populated IDs or secrets.",
+  "voiceLiveApi": {
+    "tenantId": "<tenant-id>",
+    "subscriptionId": "<subscription-id>",
+    "azdEnvName": "<azd-env-name>",
+    "resourceGroup": "<resource-group>",
+    "location": "<azure-region>",
+    "foundryResourceName": "<foundry-resource-name>",
+    "endpoint": "https://<resource-name>.services.ai.azure.com",
+    "containerAppUrl": "https://<container-app-host>",
+    "model": "gpt-realtime-mini"
+  },
+  "realtimeApi": {
+    "tenantId": "<tenant-id>",
+    "subscriptionId": "<subscription-id>",
+    "azdEnvName": "<azd-env-name>",
+    "resourceGroup": "<resource-group>",
+    "location": "<azure-region>",
+    "foundryResourceName": "<foundry-resource-name>",
+    "endpoint": "https://<resource-name>.openai.azure.com",
+    "containerAppUrl": "https://<container-app-host>",
+    "model": "gpt-realtime-2.1-mini",
+    "modelVersion": "2026-07-07",
+    "deploymentName": "<realtime-model-deployment>",
+    "deploymentCapacityUnits": "<RPM capacity units — see az cognitiveservices usage list>"
+  },
+  "foundryVoiceAgent": {
+    "_note": "Public preview. Agent lives in a Foundry project; created by the postprovision hook.",
+    "tenantId": "<tenant-id>",
+    "subscriptionId": "<subscription-id>",
+    "azdEnvName": "<azd-env-name>",
+    "location": "<ai-region>",
+    "appLocation": "<container-apps-region-or-empty>",
+    "foundryResourceName": "<foundry-resource-name>",
+    "projectName": "voice-agents",
+    "agentName": "voice-agent-demo",
+    "agentVersion": "<version-used-for-results>",
+    "model": "gpt-realtime-2.1-mini",
+    "containerAppUrl": "https://<container-app-host>"
+  },
+  "sharedPlatform": {
+    "_note": "Optional shared mode (platform/ azd project). All three examples can use this one AI endpoint; Voice Live and the voice agent share Voice Live limits.",
+    "tenantId": "<tenant-id>",
+    "subscriptionId": "<subscription-id>",
+    "azdEnvName": "<platform-azd-env-name>",
+    "resourceGroup": "<shared-resource-group>",
+    "location": "centralus",
+    "foundryResourceName": "<foundry-resource-name>",
+    "realtimeDeploymentName": "gpt-realtime-2.1-mini",
+    "searchServiceName": "<search-service-name>",
+    "searchIndexName": "knowledge",
+    "acsResourceName": "<acs-resource-name>",
+    "acsPhoneNumbers": { "voiceLiveApi": "<+1XXXXXXXXXX>", "realtimeApi": "<+1XXXXXXXXXX>", "foundryVoiceAgent": "<+1XXXXXXXXXX>" },
+    "twilio": { "voiceWebhookTarget": "<which-app>", "sipDomain": "<name>.sip.twilio.com" }
+  },
+  "workload": {
+    "_note": "Domain config lives in config/agent-profile.json + config/sample-data.json — the only files you change to retarget.",
+    "agentProfilePath": "config/agent-profile.json",
+    "sampleDataPath": "config/sample-data.json"
+  }
+}

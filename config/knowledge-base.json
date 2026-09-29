@@ -1,0 +1,35 @@
+{
+  "_note": "Sample knowledge for the search_knowledge_base tool. Used directly when AZURE_SEARCH_ENDPOINT is not set, and loaded into Azure AI Search by scripts/load-knowledge-index.py. Replace with your own documents to retarget.",
+  "documents": [
+    {
+      "id": "kb-001",
+      "title": "Reset a forgotten password",
+      "content": "To reset a forgotten password, open the self-service password portal, choose Forgot password, and verify with the registered mobile number or authenticator app. The new password must be at least 14 characters. If self-service is not registered, the service desk can reset it after identity verification with two security questions.",
+      "source": "kb/password-reset"
+    },
+    {
+      "id": "kb-002",
+      "title": "Service desk support hours",
+      "content": "The service desk answers calls Monday to Friday from 7 AM to 7 PM Central time. Priority 1 outages are handled 24 hours a day, 7 days a week through the on-call line. Requests submitted outside business hours are picked up the next business morning.",
+      "source": "kb/support-hours"
+    },
+    {
+      "id": "kb-003",
+      "title": "Request a new laptop",
+      "content": "New laptop requests need manager approval and are fulfilled within five business days. Standard models are listed in the hardware catalog; non-standard models need an exception from the hardware review board. Return the old device within ten days of receiving the replacement.",
+      "source": "kb/hardware-request"
+    },
+    {
+      "id": "kb-004",
+      "title": "Connect to the VPN",
+      "content": "Install the approved VPN client from the software center, sign in with your work account, and approve the multifactor prompt. If the client reports a certificate error, restart the device on the office network or run the device compliance check, then try again.",
+      "source": "kb/vpn"
+    },
+    {
+      "id": "kb-005",
+      "title": "Escalate an urgent issue",
+      "content": "Urgent issues that stop a whole team from working are Priority 1. Say that it is urgent and the assistant will transfer the call to a human agent, who opens a Priority 1 ticket and pages the on-call engineer. Target response for Priority 1 is 15 minutes.",
+      "source": "kb/escalation"
+    }
+  ]
+}

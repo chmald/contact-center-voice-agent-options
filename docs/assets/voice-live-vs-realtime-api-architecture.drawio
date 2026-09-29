@@ -1,0 +1,185 @@
+<mxfile host="Electron" agent="draw.io" version="26.0.0">
+  <diagram id="voice-live-vs-realtime-api" name="Architecture">
+    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Voice Live API vs Realtime API vs Foundry Voice Agent Architecture" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#323130" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="1820" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="One browser client and shared Python core; three upstream options for an apples-to-apples bake-off" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=2;fontColor=#605E5C" vertex="1" parent="1">
+          <mxGeometry x="40" y="62" width="1820" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g_user" value="User" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#A4262C;dashed=1;verticalAlign=top;fontStyle=1;fontSize=15;fontColor=#A4262C" vertex="1" parent="1">
+          <mxGeometry x="50" y="130" width="280" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="browser" value="Browser voice client&#10;mic / speaker / web UI&#10;AudioWorklet PCM16 24 kHz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#A4262C;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#323130;align=center;verticalAlign=middle;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="90" y="330" width="200" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g_app" value="Application" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#0078D4;dashed=1;verticalAlign=top;fontStyle=1;fontSize=15;fontColor=#0078D4" vertex="1" parent="1">
+          <mxGeometry x="380" y="130" width="620" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="aca_env" value="Azure Container Apps environment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F9FD;strokeColor=#0078D4;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#004578;align=center;verticalAlign=top;arcSize=8;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="410" y="190" width="360" height="445" as="geometry" />
+        </mxCell>
+        <mxCell id="ca_voice" value="ca-web&#10;Voice Live bridge&#10;FastAPI + shared core" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0078D4;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#004578;align=center;verticalAlign=middle;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="450" y="260" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ca_rt" value="ca-web&#10;Realtime bridge&#10;FastAPI + shared core" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0078D4;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#004578;align=center;verticalAlign=middle;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="450" y="410" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ca_agent" value="ca-web&#10;Foundry voice agent bridge&#10;FastAPI + shared core" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0078D4;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#004578;align=center;verticalAlign=middle;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="450" y="535" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="acr" value="Azure Container Registry&#10;remote build image" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=11;image=img/lib/azure2/containers/Container_Registries.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;labelBackgroundColor=none;" vertex="1" parent="1">
+          <mxGeometry x="830" y="230" width="72" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="uami" value="User-assigned&#10;managed identity" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=11;image=img/lib/azure2/identity/Managed_Identities.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;labelBackgroundColor=none;" vertex="1" parent="1">
+          <mxGeometry x="830" y="420" width="72" height="72" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g_ai" value="AI platform" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#5C2D91;dashed=1;verticalAlign=top;fontStyle=1;fontSize=15;fontColor=#5C2D91" vertex="1" parent="1">
+          <mxGeometry x="1050" y="130" width="520" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="foundry_voice" value="Foundry AIServices resource&#10;Voice Live API&#10;managed models - no deployment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#5C2D91;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#5C2D91;align=center;verticalAlign=middle;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="1110" y="245" width="360" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_icon_voice" value="" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=11;image=img/lib/azure2/ai_machine_learning/AI_Studio.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;labelBackgroundColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="262" width="58" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="foundry_rt" value="Foundry AIServices resource&#10;Azure OpenAI Realtime&#10;gpt-realtime-2.1-mini deployment&#10;you size TPM quota" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#5C2D91;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#5C2D91;align=center;verticalAlign=middle;arcSize=12" vertex="1" parent="1">
+          <mxGeometry x="1110" y="410" width="360" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_icon_rt" value="" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=11;image=img/lib/azure2/ai_machine_learning/Azure_OpenAI.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;labelBackgroundColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="438" width="58" height="58" as="geometry" />
+        </mxCell>
+
+        <mxCell id="foundry_agent" value="Foundry project / voice agent (preview)&#10;instructions + tools + voice&#10;served by Voice Live agent mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#5C2D91;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#5C2D91;align=center;verticalAlign=middle;arcSize=12;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="1110" y="575" width="360" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_icon_agent" value="" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=11;image=img/lib/azure2/ai_machine_learning/AI_Studio.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;labelBackgroundColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="602" width="58" height="58" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g_obs" value="Observability" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#036C70;dashed=1;verticalAlign=top;fontStyle=1;fontSize=15;fontColor=#036C70" vertex="1" parent="1">
+          <mxGeometry x="1610" y="130" width="240" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="logs" value="Log Analytics&#10;voice_turn JSON logs&#10;TTFA / tokens / busy" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=11;image=img/lib/azure2/analytics/Log_Analytics_Workspaces.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;labelBackgroundColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1695" y="345" width="72" height="72" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend" value="Legend&#10;Blue: app host + image pull&#10;Purple: AI service boundary&#10;Teal: telemetry&#10;Red: browser/user surface&#10;All three paths share the same web client, tools, metrics, admission control, load probe, telephony adapters, and Python base bridge." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#605E5C;strokeWidth=1;fontSize=11;fontColor=#323130;align=left;verticalAlign=top;spacing=8;arcSize=8" vertex="1" parent="1">
+          <mxGeometry x="410" y="665" width="520" height="145" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_browser_voice" style="endArrow=classic;html=1;strokeColor=#0078D4;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="browser" target="ca_voice">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_browser_voice" value="WSS /ws&#10;JSON audio b64&#10;PCM16 24 kHz" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#0078D4;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_browser_voice">
+          <mxGeometry x="-0.15" y="-1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="e_browser_rt" style="endArrow=classic;html=1;strokeColor=#0078D4;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="browser" target="ca_rt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_browser_rt" value="WSS /ws&#10;same client protocol" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#0078D4;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_browser_rt">
+          <mxGeometry x="-0.1" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+
+        <mxCell id="e_browser_agent" style="endArrow=classic;html=1;strokeColor=#0078D4;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="browser" target="ca_agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_browser_agent" value="WSS /ws&#10;same client protocol" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#0078D4;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_browser_agent">
+          <mxGeometry x="-0.1" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_ca_voice_ai" style="endArrow=classic;html=1;strokeColor=#5C2D91;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="ca_voice" target="foundry_voice">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_ca_voice_ai" value="wss /voice-live/realtime?&#10;api-version=2026-07-15&amp;model=..." style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#5C2D91;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_ca_voice_ai">
+          <mxGeometry x="-0.1" y="-1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="e_ca_rt_ai" style="endArrow=classic;html=1;strokeColor=#5C2D91;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="ca_rt" target="foundry_rt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_ca_rt_ai" value="wss /openai/v1/realtime?&#10;model=&lt;deployment&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#5C2D91;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_ca_rt_ai">
+          <mxGeometry x="-0.1" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+
+        <mxCell id="e_ca_agent_ai" style="endArrow=classic;html=1;strokeColor=#5C2D91;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="ca_agent" target="foundry_agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_ca_agent_ai" value="wss /voice-live/realtime?&#10;agent-name=&lt;agent&gt;&amp;agent-project-name=&lt;project&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#5C2D91;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_ca_agent_ai">
+          <mxGeometry x="-0.1" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_uami_voice" style="endArrow=classic;html=1;strokeColor=#5C2D91;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1" edge="1" parent="1" source="uami" target="foundry_voice">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_uami_voice" value="Entra bearer token&#10;Cognitive Services User + Foundry User" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#5C2D91;fontSize=10;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_uami_voice">
+          <mxGeometry x="-0.35" y="-1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="e_uami_rt" style="endArrow=classic;html=1;strokeColor=#5C2D91;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1" edge="1" parent="1" source="uami" target="foundry_rt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_uami_rt" value="Entra bearer token&#10;Cognitive Services OpenAI User" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#5C2D91;fontSize=10;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_uami_rt">
+          <mxGeometry x="-0.35" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+
+        <mxCell id="e_uami_agent" style="endArrow=classic;html=1;strokeColor=#5C2D91;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1" edge="1" parent="1" source="uami" target="foundry_agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_uami_agent" value="Entra bearer token&#10;Cognitive Services User + Foundry User" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#5C2D91;fontSize=10;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_uami_agent">
+          <mxGeometry x="-0.35" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_acr_voice" style="endArrow=classic;html=1;strokeColor=#0078D4;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1" edge="1" parent="1" source="acr" target="ca_voice">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_acr_voice" value="AcrPull" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#0078D4;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_acr_voice">
+          <mxGeometry x="0.1" y="-1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="e_acr_rt" style="endArrow=classic;html=1;strokeColor=#0078D4;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1" edge="1" parent="1" source="acr" target="ca_rt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_acr_rt" value="AcrPull" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#0078D4;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_acr_rt">
+          <mxGeometry x="0.1" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+
+        <mxCell id="e_acr_agent" style="endArrow=classic;html=1;strokeColor=#0078D4;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1" edge="1" parent="1" source="acr" target="ca_agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_acr_agent" value="AcrPull" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#0078D4;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_acr_agent">
+          <mxGeometry x="0.1" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_voice_logs" style="endArrow=classic;html=1;strokeColor=#036C70;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="ca_voice" target="logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_voice_logs" value="structured app logs" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#036C70;fontSize=10;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_voice_logs">
+          <mxGeometry x="0.2" y="-1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="e_rt_logs" style="endArrow=classic;html=1;strokeColor=#036C70;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="ca_rt" target="logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_rt_logs" value="same metrics envelope" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#036C70;fontSize=10;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_rt_logs">
+          <mxGeometry x="0.2" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_agent_logs" style="endArrow=classic;html=1;strokeColor=#036C70;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;rounded=0" edge="1" parent="1" source="ca_agent" target="logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_agent_logs" value="same metrics envelope" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=#036C70;fontSize=10;labelBackgroundColor=#ffffff" connectable="0" vertex="1" parent="e_agent_logs">
+          <mxGeometry x="0.2" y="1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

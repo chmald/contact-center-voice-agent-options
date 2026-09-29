@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+# Infra-only azd project (no services): run `azd provision` here first, then point both
+# examples at its outputs (see docs/07-telephony-and-shared-endpoint.md).
+name: voice-agent-shared-platform
+metadata:
+  template: voice-live-vs-realtime-api-platform@1.1.0
+hooks:
+  preprovision:
+    shell: pwsh
+    run: hooks/preprovision.ps1
+    continueOnError: false
+    interactive: false

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Agent Demo</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <p class="eyebrow">Reusable Microsoft voice-agent demo</p>
+        <h1 id="title">Voice Agent Demo</h1>
+        <p id="subtitle">Loading...</p>
+      </header>
+
+      <section class="controls" aria-label="Session controls">
+        <button id="startStop" type="button">Start</button>
+        <form id="textForm">
+          <label class="sr-only" for="textInput">Type a message</label>
+          <input id="textInput" type="text" placeholder="Type a turn..." autocomplete="off" />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+
+      <p id="status" role="status">Idle</p>
+
+      <section class="grid">
+        <article>
+          <h2>Transcript</h2>
+          <div id="transcript" class="pane transcript" aria-live="polite"></div>
+        </article>
+
+        <article>
+          <h2>Tools</h2>
+          <div id="tools" class="pane"></div>
+        </article>
+
+        <article>
+          <h2>Metrics</h2>
+          <dl id="metrics" class="metrics">
+            <div><dt>Last TTFA</dt><dd id="ttfa">-</dd></div>
+            <div><dt>Last response</dt><dd id="responseMs">-</dd></div>
+            <div><dt>Input / output / cached</dt><dd id="tokens">-</dd></div>
+            <div><dt>Session turns</dt><dd id="turns">0</dd></div>
+            <div><dt>Total tokens</dt><dd id="totalTokens">0</dd></div>
+            <div><dt>Tokens/min</dt><dd id="tpm">0</dd></div>
+            <div><dt>p50 / p90 TTFA</dt><dd id="ttfaPercentiles">-</dd></div>
+          </dl>
+        </article>
+      </section>
+    </main>
+
+    <script src="/static/app.js" type="module"></script>
+  </body>
+</html>

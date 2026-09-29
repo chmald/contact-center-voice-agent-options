@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: foundry-voice-agent
+metadata:
+  template: voice-live-vs-realtime-api-foundry-voice-agent@1.2.0
+services:
+  web:
+    project: .
+    language: python
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: ../..
+      remoteBuild: true
+hooks:
+  postprovision:
+    shell: pwsh
+    run: hooks/postprovision.ps1
+    continueOnError: false
+    interactive: false

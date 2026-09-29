@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Run tests
+        run: pytest -q
+      - name: Azure CLI Bicep build
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -e
+            if [ -f examples/voice-live-api/infra/main.bicep ]; then
+              az bicep build --file examples/voice-live-api/infra/main.bicep
+            else
+              echo "Skipping voice-live-api Bicep build; infra/main.bicep not present yet."
+            fi
+            if [ -f examples/realtime-api/infra/main.bicep ]; then
+              az bicep build --file examples/realtime-api/infra/main.bicep
+            else
+              echo "Skipping realtime-api Bicep build; infra/main.bicep not present yet."
+            fi
+            az bicep build --file platform/infra/main.bicep
+            az bicep build --file examples/foundry-voice-agent/infra/main.bicep

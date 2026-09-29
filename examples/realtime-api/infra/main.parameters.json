@@ -1,0 +1,78 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "appLocation": {
+      "value": "${AZURE_APP_LOCATION=}"
+    },
+    "principalId": {
+      "value": "${AZURE_PRINCIPAL_ID}"
+    },
+    "principalType": {
+      "value": "${AZURE_PRINCIPAL_TYPE=User}"
+    },
+    "realtimeModel": {
+      "value": "${AZURE_OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini}"
+    },
+    "realtimeModelVersion": {
+      "value": "${AZURE_OPENAI_REALTIME_MODEL_VERSION=}"
+    },
+    "realtimeDeploymentName": {
+      "value": "${AZURE_OPENAI_REALTIME_DEPLOYMENT=}"
+    },
+    "realtimeDeploymentCapacity": {
+      "value": "${REALTIME_DEPLOYMENT_CAPACITY=10}"
+    },
+    "versionUpgradeOption": {
+      "value": "${REALTIME_VERSION_UPGRADE_OPTION=OnceCurrentVersionExpired}"
+    },
+    "realtimeVoice": {
+      "value": "${REALTIME_VOICE=marin}"
+    },
+    "maxConcurrentSessions": {
+      "value": "${MAX_CONCURRENT_SESSIONS=20}"
+    },
+    "webExists": {
+      "value": "${SERVICE_WEB_RESOURCE_EXISTS=false}"
+    },
+    "sharedResourceGroup": {
+      "value": "${SHARED_RESOURCE_GROUP=}"
+    },
+    "sharedFoundryName": {
+      "value": "${SHARED_FOUNDRY_NAME=}"
+    },
+    "searchServiceName": {
+      "value": "${AZURE_SEARCH_SERVICE_NAME=}"
+    },
+    "searchIndexName": {
+      "value": "${AZURE_SEARCH_INDEX=knowledge}"
+    },
+    "searchSemanticConfig": {
+      "value": "${AZURE_SEARCH_SEMANTIC_CONFIG=default}"
+    },
+    "acsResourceName": {
+      "value": "${ACS_RESOURCE_NAME=}"
+    },
+    "telephonyProviders": {
+      "value": "${TELEPHONY_PROVIDERS=}"
+    },
+    "telephonyWebhookSecret": {
+      "value": "${TELEPHONY_WEBHOOK_SECRET=}"
+    },
+    "acsEventGridSecret": {
+      "value": "${ACS_EVENTGRID_SECRET=}"
+    },
+    "twilioAuthToken": {
+      "value": "${TWILIO_AUTH_TOKEN=}"
+    },
+    "telephonyOverflowNumber": {
+      "value": "${TELEPHONY_OVERFLOW_NUMBER=}"
+    }
+  }
+}

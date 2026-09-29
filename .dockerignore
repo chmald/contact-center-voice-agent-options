@@ -1,0 +1,26 @@
+# Both examples build with the repo root as Docker context (see examples/*/azure.yaml).
+# Keep the upload to ACR small and never ship local state or secrets.
+.git
+.github
+.azure
+**/.azure
+.venv
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+.vscode
+node_modules
+docs
+tests
+loadtest
+scripts
+**/infra
+**/.env
+**/.env.*
+*.local.json
+*.local.*
+demo-ids.json
+**/*.pem
+**/*.key
+secrets.json
+.sp-secret.json
