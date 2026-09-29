@@ -4,6 +4,15 @@ Change history for the reusable demo pattern. Entries are newest-first.
 
 ---
 
+## [1.2.3] - 2026-09-29
+
+### Fixed
+
+- **Realtime capacity was mislabelled as RPM units.** `REALTIME_DEPLOYMENT_CAPACITY` (`sku.capacity`) is in **capacity units**; each unit grants TPM and RPM per the model version. Verified 2026-09-29 against `az cognitiveservices model list` and the live deployment's `rateLimits`: `gpt-realtime-2.1-mini` 2026-07-07 = 10,000 TPM + 20 RPM per unit (default 10 units = 100K TPM / 200 RPM, which the portal shows as TPM); `gpt-realtime-mini` 2025-12-15 = 10,000 TPM + 3 RPM per unit (20 units = 200K TPM / 60 RPM). The `az cognitiveservices usage list` row is labelled `Requests Per Minute - <model> - GlobalStandard` but counts units. Corrected in README, docs 00/02/03/04/06/07/09, Bicep descriptions, example README, diagrams, and templates; the 1.2.0 note below used the wrong wording.
+- `scripts\check-realtime-quota.ps1` now prints limit/available/requested as units **and** approximate TPM/RPM, and accepts `-ResourceGroup`/`-FoundryName` so a manual run adds back an existing deployment's capacity.
+
+---
+
 ## [1.2.2] - 2026-09-29
 
 ### Fixed

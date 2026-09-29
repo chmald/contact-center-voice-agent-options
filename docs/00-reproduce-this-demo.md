@@ -136,7 +136,7 @@ azd up
 azd env get-values
 ```
 
-The default model is `gpt-realtime-2.1-mini` version `2026-07-07`, deployment name `gpt-realtime-2.1-mini`, and `REALTIME_DEPLOYMENT_CAPACITY=10` (RPM capacity units; the `preprovision` hook checks it against available quota).
+The default model is `gpt-realtime-2.1-mini` version `2026-07-07`, deployment name `gpt-realtime-2.1-mini`, and `REALTIME_DEPLOYMENT_CAPACITY=10` (capacity units (for `gpt-realtime-2.1-mini`, 1 unit = 10,000 TPM + 20 RPM, so the default 10 = 100K TPM / 200 RPM; the portal shows the same value as TPM); the `preprovision` hook checks it against available quota).
 
 **Checkpoint C**
 

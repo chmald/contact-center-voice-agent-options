@@ -148,7 +148,15 @@ Before deploying `examples\realtime-api`, run:
 az cognitiveservices usage list -l <region> -o table
 ```
 
-The verified brief confirms a default `gpt-realtime` Global Standard quota row of 100,000 TPM and 200 RPM, but mini and 2.1-mini defaults are not separately documented. Realtime deployment capacity is counted in **RPM units**: `az cognitiveservices usage list` shows the row as `Requests Per Minute - <model> - GlobalStandard`, and `sku.capacity` consumes those units. Observed on 2026-09-29: a subscription with a default limit of **10** units for `gpt-realtime-2.1-mini` (and 20 for `gpt-realtime-mini`) in `centralus`. `REALTIME_DEPLOYMENT_CAPACITY` therefore defaults to `10`, and the `preprovision` hook (`scripts\check-realtime-quota.ps1`) stops `azd provision` with the value to set if the request exceeds what is available.
+The verified brief confirms a default `gpt-realtime` Global Standard quota row of 100,000 TPM and 200 RPM. Realtime deployment capacity (`sku.capacity`) is set in **capacity units**, and each unit grants both a TPM and an RPM limit that depend on the model version (from `az cognitiveservices model list` and a live deployment, 2026-09-29):
+
+| Model (Global Standard) | Per capacity unit | 10 units | 20 units |
+|---|---|---|---|
+| `gpt-realtime-2.1-mini` 2026-07-07 | 10,000 TPM + 20 RPM | 100K TPM / 200 RPM | 200K TPM / 400 RPM |
+| `gpt-realtime-mini` 2025-12-15 | 10,000 TPM + 3 RPM | 100K TPM / 30 RPM | 200K TPM / 60 RPM |
+| `gpt-realtime` 2025-08-28 | 10,000 TPM + 20 RPM | 100K TPM / 200 RPM | 200K TPM / 400 RPM |
+
+The Foundry portal shows the deployment as **TPM** (units × 10,000). `az cognitiveservices usage list` labels the quota row `Requests Per Minute - <model> - GlobalStandard`, but its limit and usage are counted in these **units**, not requests. Observed on 2026-09-29: a subscription with a default limit of **10 units** for `gpt-realtime-2.1-mini` (100K TPM) and 20 for `gpt-realtime-mini` in `centralus`. `REALTIME_DEPLOYMENT_CAPACITY` therefore defaults to `10`, and the `preprovision` hook (`scripts\check-realtime-quota.ps1`) stops `azd provision` with the value to set if the request exceeds what is available. Re-check per-unit rates with `az cognitiveservices model list -l <region>` because they vary by model version.
 
 Request more quota at https://aka.ms/oai/stuquotarequest. The verified brief also notes that realtime quota is moving to a subscription-level pool; moving regions can fix availability, but it does not create new subscription quota.
 

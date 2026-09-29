@@ -77,7 +77,7 @@ Container App environment variables set by Bicep are exactly: `VOICE_LIVE_ENDPOI
 | `AZURE_OPENAI_REALTIME_MODEL` | `realtimeModel` | `gpt-realtime-2.1-mini` | Model name deployed to Azure OpenAI |
 | `AZURE_OPENAI_REALTIME_MODEL_VERSION` | `realtimeModelVersion` | empty | Optional override; Bicep defaults per model |
 | `AZURE_OPENAI_REALTIME_DEPLOYMENT` | `realtimeDeploymentName` | empty | Optional deployment name; defaults to model name |
-| `REALTIME_DEPLOYMENT_CAPACITY` | `realtimeDeploymentCapacity` | `10` | GlobalStandard capacity in RPM units (checked by the `preprovision` hook) |
+| `REALTIME_DEPLOYMENT_CAPACITY` | `realtimeDeploymentCapacity` | `10` | GlobalStandard capacity units; `gpt-realtime-2.1-mini` = 10K TPM + 20 RPM per unit (10 = 100K TPM). Checked by the `preprovision` hook |
 | `REALTIME_VERSION_UPGRADE_OPTION` | `versionUpgradeOption` | `OnceCurrentVersionExpired` | Deployment version-upgrade policy |
 | `REALTIME_VOICE` | `realtimeVoice` | `marin` | Realtime output voice |
 | `MAX_CONCURRENT_SESSIONS` | `maxConcurrentSessions` | `20` | Per-replica admission cap |

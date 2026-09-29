@@ -41,7 +41,7 @@ param realtimeModelVersion string = ''
 
 param realtimeDeploymentName string = ''
 
-@description('Realtime Global Standard capacity, in the RPM units shown as "Requests Per Minute - <model> - GlobalStandard" by az cognitiveservices usage list. Many subscriptions start with 10. The preprovision hook (scripts/check-realtime-quota.ps1) stops early if this exceeds what is available.')
+@description('Realtime Global Standard capacity units. gpt-realtime-2.1-mini: 1 unit = 10,000 TPM + 20 RPM (10 = 100K TPM, what the portal shows). The usage-list quota row is labelled "Requests Per Minute - <model> - GlobalStandard" but counts units. Many subscriptions start with 10. The preprovision hook (scripts/check-realtime-quota.ps1) stops early if this exceeds what is available.')
 param realtimeDeploymentCapacity int = 10
 
 @allowed([

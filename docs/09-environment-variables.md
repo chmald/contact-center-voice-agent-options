@@ -13,7 +13,7 @@ Record the values you used with every result set (`demo-ids.local.json`) — esp
 | Constraint you hit | Variable | What to do |
 |---|---|---|
 | Container Apps capacity/quota unavailable in the AI region | **`AZURE_APP_LOCATION`** | Keep `AZURE_LOCATION` (AI) in `centralus`; set `AZURE_APP_LOCATION` to the nearest region with Container Apps (e.g. `eastus2`). Use the **same value for all three examples** so the app→AI network hop is equal. Changing it after deploy requires `azd down --purge` (resource names don't depend on it). |
-| `InsufficientQuota` on the realtime deployment | **`REALTIME_DEPLOYMENT_CAPACITY`** | Counted in RPM units (`Requests Per Minute - <model> - GlobalStandard`); many subscriptions have 10. The `preprovision` hook prints the available value. |
+| `InsufficientQuota` on the realtime deployment | **`REALTIME_DEPLOYMENT_CAPACITY`** | Capacity units: for `gpt-realtime-2.1-mini` 1 unit = 10,000 TPM + 20 RPM (the portal shows TPM). The quota row is labelled `Requests Per Minute - <model> - GlobalStandard` but counts units; many subscriptions have 10 (= 100K TPM). The `preprovision` hook prints the available value. |
 | Model not offered / refused in a region | `AZURE_LOCATION`, `AZURE_OPENAI_REALTIME_MODEL`, `VOICE_LIVE_MODEL`, `VOICE_AGENT_MODEL` | Pick a region where Voice Live, Agent Service (voice agent), and the realtime model are all available: `centralus`, `eastus2`, `swedencentral`. |
 | Voice Live throttling under load (Voice Live + voice agent) | *(no variable)* | Per-resource limits (100 new connections/min, ≤120K TPM). In shared mode both managed-model examples draw on the **same** resource's limits; request an increase or run one example at a time. |
 
@@ -62,7 +62,7 @@ Written by `scripts\use-shared-platform.ps1` from the `platform\` outputs. Empty
 | `AZURE_OPENAI_REALTIME_MODEL` | deploy + runtime | `gpt-realtime-2.1-mini` | Deployed model (`gpt-realtime-2.1-mini`, `gpt-realtime-mini`). |
 | `AZURE_OPENAI_REALTIME_MODEL_VERSION` | deploy | derived | `2026-07-07` / `2025-12-15`. |
 | `AZURE_OPENAI_REALTIME_DEPLOYMENT` | deploy + runtime | model name | Deployment name. |
-| **`REALTIME_DEPLOYMENT_CAPACITY`** | deploy (example + platform) | `10` | Global Standard capacity in RPM units; checked by the `preprovision` hook. |
+| **`REALTIME_DEPLOYMENT_CAPACITY`** | deploy (example + platform) | `10` | Global Standard capacity units (`gpt-realtime-2.1-mini`: 10K TPM + 20 RPM each; 10 = 100K TPM / 200 RPM). Checked by the `preprovision` hook. |
 | `REALTIME_VERSION_UPGRADE_OPTION` | deploy | `OnceCurrentVersionExpired` | Deployment auto-upgrade policy. |
 | `REALTIME_VOICE` | deploy + runtime | `marin` | One of the 10 OpenAI voices. |
 | `AZURE_OPENAI_ENDPOINT` | runtime | Bicep | `https://<foundry>.openai.azure.com` |

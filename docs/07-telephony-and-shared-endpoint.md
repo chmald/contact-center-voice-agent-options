@@ -60,7 +60,7 @@ limits — it does not remove them.
 | | Voice Live API (managed model, e.g. `gpt-realtime-mini`) | Azure OpenAI Realtime API |
 |---|---|---|
 | What you create | `AIServices` resource only — **no model deployment** | `AIServices` resource **plus** a Global Standard model deployment |
-| What limits you | **Per-resource** Voice Live limits (S0): **100 new connections/min**, **≤ 120,000 TPM**, **≤ 60 min per session** | **Deployment quota** for that model + version, counted in **RPM capacity units** (`REALTIME_DEPLOYMENT_CAPACITY`; `az cognitiveservices usage list` shows `Requests Per Minute - <model> - GlobalStandard`, often 10 by default). Documented default for base `gpt-realtime` Global Standard: 100,000 TPM / 200 RPM; mini and 2.1-mini rows aren't listed separately |
+| What limits you | **Per-resource** Voice Live limits (S0): **100 new connections/min**, **≤ 120,000 TPM**, **≤ 60 min per session** | **Deployment quota** for that model + version, set in **capacity units** (`REALTIME_DEPLOYMENT_CAPACITY`). For `gpt-realtime-2.1-mini` 1 unit = **10,000 TPM + 20 RPM**, so 10 units = 100K TPM / 200 RPM (the portal shows it as TPM). `az cognitiveservices usage list` labels the quota row `Requests Per Minute - <model> - GlobalStandard`, but it is counted in units (often 10 by default). Documented default for base `gpt-realtime` Global Standard: 100,000 TPM / 200 RPM; mini and 2.1-mini rows aren't listed separately |
 | Scope of the limit | One Voice Live/Speech resource | Moving to **subscription-level pools**: Global Standard deployments of the same model + version share one pool across all regions in the subscription (started after 2026-05-07 with some models, "soon all models") |
 | What you raise | **New connections/min** (only adjustable item); TPM rises with it at **TPM = NCPM × 4,000** | TPM quota for the model/version |
 | How you ask | Azure portal **support request** (Speech / Voice Live quota) | Azure OpenAI quota request (https://aka.ms/oai/stuquotarequest) or Foundry → Quota |
@@ -77,7 +77,7 @@ the effective TPM for the resource.
 ### What this means in the shared-endpoint setup
 
 - All three examples run on the **same `AIServices` resource**, but not on the same limits:
-  - **Realtime API** uses only the platform deployment's quota (RPM capacity units).
+  - **Realtime API** uses only the platform deployment's quota (capacity units: 10K TPM + 20 RPM each).
   - **Voice Live API** and the **Foundry voice agent** both use the resource's **per-resource
     Voice Live limits** (the voice agent is Voice Live in agent mode). They **share** those limits:
     100 new connections/min and ≤120K TPM across both apps together.
@@ -119,7 +119,7 @@ azd env new voice-shared
 azd env set AZURE_TENANT_ID <tenant-id>
 azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
 azd env set AZURE_LOCATION centralus
-azd env set REALTIME_DEPLOYMENT_CAPACITY 10      # RPM units; the preprovision hook checks available quota
+azd env set REALTIME_DEPLOYMENT_CAPACITY 10      # capacity units: 10 = 100K TPM / 200 RPM; preprovision hook checks quota
 azd provision
 ```
 

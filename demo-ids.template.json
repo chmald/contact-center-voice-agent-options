@@ -24,7 +24,7 @@
     "model": "gpt-realtime-2.1-mini",
     "modelVersion": "2026-07-07",
     "deploymentName": "<realtime-model-deployment>",
-    "deploymentCapacityUnits": "<RPM capacity units — see az cognitiveservices usage list>"
+    "deploymentCapacityUnits": "<capacity units — gpt-realtime-2.1-mini: 1 unit = 10K TPM + 20 RPM>"
   },
   "foundryVoiceAgent": {
     "_note": "Public preview. Agent lives in a Foundry project; created by the postprovision hook.",

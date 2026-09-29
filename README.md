@@ -27,7 +27,7 @@ All three share one browser client, one WebSocket bridge, one agent profile, one
 | **Where the agent is defined** | In the app (bridge sends instructions + tools each session) | In the app | A **versioned agent** in a Foundry project (instructions, tools, voice, greeting, audio pipeline); app sends **no session config** |
 | **Model** | Managed (`gpt-realtime-mini`, `gpt-realtime-2.1-mini`, …) | Your Global Standard deployment (`gpt-realtime-2.1-mini`, `gpt-realtime-mini`) | Managed (`gpt-realtime-2.1-mini`, `gpt-realtime-mini`, `gpt-realtime`) |
 | **Model deployment?** | **No** | **Yes** | **No** |
-| **What limits capacity** | Per-resource Voice Live limits: 100 new connections/min, ≤120K TPM, ≤60-min sessions | Deployment quota in **RPM capacity units** (often 10 by default), pooled per subscription + model version | Same per-resource Voice Live limits, plus Agent Service limits (60-min sessions) |
+| **What limits capacity** | Per-resource Voice Live limits: 100 new connections/min, ≤120K TPM, ≤60-min sessions | Deployment quota in **capacity units** (gpt-realtime-2.1-mini: 1 unit = 10K TPM + 20 RPM; often 10 units = 100K TPM by default), pooled per subscription + model version | Same per-resource Voice Live limits, plus Agent Service limits (60-min sessions) |
 | **Fails early or under load?** | Under load (throttling) | At deploy time (`InsufficientQuota`) and under load | Under load (throttling) |
 | **How to get more** | Azure support request (raise new connections/min; TPM = NCPM × 4,000) | Azure OpenAI quota request; can be refused for versions near retirement | Same as Voice Live |
 | **Model lifecycle** | Service-managed | You manage versions, upgrade policy, and retirement dates | Service-managed; pin behaviour with agent versions |
@@ -60,7 +60,7 @@ Every example deploys one Azure Container App replica with server-side admission
 |---|---|
 | `AZURE_LOCATION` | AI region (Foundry, models, voice agent, search). `centralus`, `eastus2`, or `swedencentral`. |
 | **`AZURE_APP_LOCATION`** | App region (Container Apps, ACR, Log Analytics). Set it when **Container Apps capacity is constrained** in the AI region; use the same value for all three examples. |
-| `REALTIME_DEPLOYMENT_CAPACITY` | Realtime deployment size in RPM units (default `10`); checked before provisioning. |
+| `REALTIME_DEPLOYMENT_CAPACITY` | Realtime deployment size in capacity units (default `10` = 100K TPM / 200 RPM for `gpt-realtime-2.1-mini`); checked before provisioning. |
 | `SHARED_RESOURCE_GROUP` / `SHARED_FOUNDRY_NAME` / `SHARED_FOUNDRY_PROJECT` | Put the examples on the one shared endpoint. |
 | `TELEPHONY_PROVIDERS` | `acs`, `twilio`, or both. |
 
@@ -200,7 +200,7 @@ Full detail is in [02-prerequisites.md](./docs/02-prerequisites.md). At minimum 
 - Azure subscription permissions to create resources and assign RBAC: Contributor plus User Access Administrator, or Owner.
 - Resource providers registered for Container Apps, Cognitive Services, Container Registry, Log Analytics, and Managed Identity.
 - A region that supports the chosen API and model. For a clean same-region bake-off, use `centralus`, `eastus2`, or `swedencentral`.
-- Realtime API quota checked before deployment. The Realtime example creates a Global Standard model deployment, sized in RPM capacity units (`REALTIME_DEPLOYMENT_CAPACITY`, default `10`); a `preprovision` hook checks it against available quota.
+- Realtime API quota checked before deployment. The Realtime example creates a Global Standard model deployment, sized in capacity units (`REALTIME_DEPLOYMENT_CAPACITY`, default `10`); a `preprovision` hook checks it against available quota.
 
 ---
 

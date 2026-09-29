@@ -23,7 +23,7 @@ az cognitiveservices usage list -l <region> -o table
 az cognitiveservices account list-models -n <account> -g <resource-group> -o table
 ```
 
-Look for the realtime model's GlobalStandard quota row. The row is named `Requests Per Minute - <model> - GlobalStandard`; `REALTIME_DEPLOYMENT_CAPACITY` (default `10`) consumes those RPM units. The `preprovision` hook runs `scripts\check-realtime-quota.ps1` and stops with the value to set if it would exceed what is available.
+Look for the realtime model's GlobalStandard quota row. The row is labelled `Requests Per Minute - <model> - GlobalStandard` but is counted in **capacity units**; `REALTIME_DEPLOYMENT_CAPACITY` (default `10`) consumes them. For `gpt-realtime-2.1-mini`, 1 unit = 10,000 TPM + 20 RPM, so 10 units = 100K TPM / 200 RPM (the portal's TPM slider shows the same deployment as 100K). The `preprovision` hook runs `scripts\check-realtime-quota.ps1` and stops with the value to set if it would exceed what is available.
 
 ## 3. Deploy
 

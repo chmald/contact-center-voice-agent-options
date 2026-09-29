@@ -195,6 +195,8 @@ Compare:
 
 Realtime APIs re-process session context on each response: instructions, tool schemas, and history all contribute input tokens. Use measured p90 TPM from the probe rather than guessing.
 
+**Realtime capacity units → TPM/RPM.** `REALTIME_DEPLOYMENT_CAPACITY` is in capacity units, not RPM. For `gpt-realtime-2.1-mini`, 1 unit = 10,000 TPM + 20 RPM, so the default 10 units = **100K TPM / 200 RPM** (what the portal shows as TPM). At ~80K TPM per call at p90, 10 units hold about **one** concurrent caller at p90; a 20-caller Realtime test needs ~1.6M TPM (~160 units). The `preprovision` hook prints the conversion for the chosen model version.
+
 Formula:
 
 ```text

@@ -172,7 +172,7 @@ def page_architecture() -> Page:
     p.note(
         "<b>Capacity</b><br>"
         "• Voice Live + voice agent: per-resource Voice Live limits (100 new connections/min, ≤120K TPM) — <b>shared</b> by both<br>"
-        "• Realtime: deployment quota in RPM units (often 10) — separate pool<br>"
+        "• Realtime: deployment capacity units (1 = 10K TPM + 20 RPM; often 10 = 100K TPM) — separate pool<br>"
         "• Voice agent is <b>public preview</b>",
         1250, 160, 580, 130, WARN, WARN_FILL, "middle")
 
@@ -207,7 +207,7 @@ def page_three_ways() -> Page:
          "session.update with instructions, tools, voice, semantic VAD, noise reduction (GA nested schema)",
          "wss://&lt;foundry&gt;.openai.azure.com/openai/v1/realtime?model=&lt;deployment&gt;",
          ("Your Global Standard deployment", "gpt-realtime-2.1-mini · you manage version + upgrade", "openai"),
-         ("Deployment quota (RPM units)", "REALTIME_DEPLOYMENT_CAPACITY (default 10)<br>Pooled per subscription + model version · fails at deploy AND under load", BAD_FILL, USER)),
+         ("Deployment capacity units", "REALTIME_DEPLOYMENT_CAPACITY (default 10 = 100K TPM / 200 RPM)<br>Pooled per subscription + model version · fails at deploy AND under load", BAD_FILL, USER)),
         ("Foundry voice agent", "PREVIEW", WARN, WARN_FILL, True,
          "No session.update and no greeting — the agent owns instructions, tools, voice, greeting, VAD, noise, echo, transcription; bridge streams audio and runs tools",
          "wss://&lt;foundry&gt;.services.ai.azure.com/api/projects/&lt;p&gt;/agents/&lt;a&gt;/endpoint/protocols/voice?api-version=2025-11-15-preview  + Foundry-Features: VoiceAgents=V1Preview",
@@ -277,7 +277,7 @@ def page_deployment() -> Page:
     p.group("Subscription (AZURE_SUBSCRIPTION_ID)", 40, 110, 1720, 830, GREY, "none", False)
     p.group("platform/ · rg-<platform-env> · AZURE_LOCATION (centralus)", 70, 150, 620, 560, AI)
     p.tile("Foundry resource (AIServices)", "disableLocalAuth · allowProjectManagement", 100, 200, 560, 80, AI, "foundry")
-    p.tile("Realtime deployment", "GlobalStandard · capacity REALTIME_DEPLOYMENT_CAPACITY (RPM units)", 130, 300, 530, 70, AI, "openai")
+    p.tile("Realtime deployment", "GlobalStandard · REALTIME_DEPLOYMENT_CAPACITY units (1 = 10K TPM + 20 RPM)", 130, 300, 530, 70, AI, "openai")
     p.tile("Project 'voice-agents'", "holds the Foundry voice agent (preview)", 130, 390, 530, 70, WARN, "foundry", WARN_FILL, True)
     p.tile("Azure AI Search", "Basic · semantic ranker · key auth off", 100, 490, 560, 70, AI, "search")
     p.tile("Communication Services", "global · phone numbers bought in portal", 100, 590, 560, 70, BLUE, "acs")
