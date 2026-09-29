@@ -64,7 +64,7 @@ flowchart LR
     Browser <-->|"WSS /ws\nPCM16 24 kHz + JSON"| AgentCA
     VoiceCA -->|"WSS /voice-live/realtime\nEntra bearer"| VoiceFoundry
     RealtimeCA -->|"WSS /openai/v1/realtime\nEntra bearer"| RealtimeFoundry
-    AgentCA -->|"WSS /voice-live/realtime\nagent-name + project"| VoiceFoundry
+    AgentCA -->|"WSS /api/projects/.../agents/.../endpoint/protocols/voice"| VoiceFoundry
     RealtimeFoundry --> RealtimeDeployment
     VoiceFoundry --> FoundryProject --> VoiceAgent
     VoiceCA --> Logs
@@ -96,7 +96,7 @@ flowchart LR
 |---|---|---|---|
 | Example root | `examples\voice-live-api\` | `examples\realtime-api\` | `examples\foundry-voice-agent\` |
 | Bridge file | `examples\voice-live-api\src\voice_live_bridge.py` | `examples\realtime-api\src\realtime_api_bridge.py` | `examples\foundry-voice-agent\src\voice_agent_bridge.py` |
-| Endpoint | `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>` | `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>` | `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&agent-name=<agent>&agent-project-name=<project>` |
+| Endpoint | `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>` | `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>` | `wss://<resource>.services.ai.azure.com/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` + `Foundry-Features: VoiceAgents=V1Preview` |
 | Session schema | Flat Voice Live schema | GA nested Realtime schema | Agent mode: **no** `session.update` and no greeting `response.create` by default; instructions, tools, voice, greeting, and audio pipeline are stored on the agent |
 | Default model | `gpt-realtime-mini` | `gpt-realtime-2.1-mini` | `gpt-realtime-2.1-mini` |
 | Default voice | `en-US-Ava:DragonHDLatestNeural` | `marin` | `en-US-Ava:DragonHDLatestNeural` stored on the agent |
@@ -117,7 +117,7 @@ flowchart LR
 4. The example-specific bridge opens the upstream WebSocket:
    - Voice Live: `/voice-live/realtime` with `api-version=2026-07-15` and `model=<managed-model>`.
    - Realtime: `/openai/v1/realtime` with `model=<deployment-name>` and no `api-version`.
-   - Foundry voice agent: `/voice-live/realtime` with `agent-name=<agent>`, `agent-project-name=<project>`, and optional `agent-version`.
+   - Foundry voice agent: project-scoped route `/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` with `Foundry-Features: VoiceAgents=V1Preview` (Foundry portal sample; default). The older `/voice-live/realtime?agent-name=…&agent-project-name=…` route (`VOICE_AGENT_ROUTE=voice-live`) currently fails for `kind: voice` agents.
 5. Voice Live and Realtime send `session.update` built from `config\agent-profile.json` plus API-specific audio, voice, VAD, transcription, tool, and token settings. In Foundry agent mode, `scripts\create-voice-agent.py` has already stored instructions, function tools, voice, a template greeting, the audio pipeline (Azure semantic VAD, deep noise suppression, echo cancellation, transcription), and `store: true` on a versioned agent, so the bridge sends no `session.update` and no greeting; it waits for `session.created` and streams audio. Agent Service rejects `response.create` with `instructions`.
 6. The browser captures microphone audio with `AudioWorklet`, resamples to 24 kHz PCM16, base64-encodes each chunk, and sends `{"type":"audio","audio":"..."}`.
 7. The bridge forwards audio chunks upstream as `input_audio_buffer.append`.
@@ -180,7 +180,7 @@ The root README has the three-way comparison, while [`06-comparison-one-pager.md
 |---|---|---|---|
 | `examples\voice-live-api\src\voice_live_bridge.py` | Builds `/voice-live/realtime` URL with `api-version=2026-07-15`; flat session schema; Azure or OpenAI voice object; Azure semantic VAD; managed model string; sends instructions and tools each session. | Not used. | Not used. |
 | `examples\realtime-api\src\realtime_api_bridge.py` | Not used. | Builds `/openai/v1/realtime` URL with no `api-version`; GA nested session schema; deployment name in `model=`; optional transcription deployment; sends instructions and tools each session. | Not used. |
-| `examples\foundry-voice-agent\src\voice_agent_bridge.py` | Not used. | Not used. | Builds `/voice-live/realtime` URL with `agent-name` and `agent-project-name`; sends no session config or greeting because the agent owns them (optional `VOICE_AGENT_ROUTE=project` uses the portal's project-scoped route). |
+| `examples\foundry-voice-agent\src\voice_agent_bridge.py` | Not used. | Not used. | Builds the project-scoped `/api/projects/<p>/agents/<a>/endpoint/protocols/voice` URL with the `Foundry-Features` header (Voice Live agent-mode route optional); sends no session config or greeting because the agent owns them (optional `VOICE_AGENT_ROUTE=project` uses the portal's project-scoped route). |
 | `scripts\create-voice-agent.py` | Not used. | Not used. | Creates a Foundry Agent Service voice agent version from `config\agent-profile.json` through `azure-ai-projects` 2.7.0 with `allow_preview=True`. |
 | `examples\*\infra\modules\resources.bicep` | Creates Foundry resource and role assignments only; no model deployment. | Creates Foundry resource plus `accounts/deployments` for the realtime model. | Creates Foundry resource with `allowProjectManagement: true`, system identity, and a `Microsoft.CognitiveServices/accounts/projects@2025-06-01` project in standalone mode; shared mode uses the platform project. |
 | `examples\*\infra\main.parameters.json` | Uses `VOICE_LIVE_MODEL`, `VOICE_LIVE_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `AZURE_OPENAI_REALTIME_MODEL`, `AZURE_OPENAI_REALTIME_MODEL_VERSION`, `AZURE_OPENAI_REALTIME_DEPLOYMENT`, `REALTIME_DEPLOYMENT_CAPACITY`, `REALTIME_VERSION_UPGRADE_OPTION`, `REALTIME_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `VOICE_AGENT_MODEL`, `VOICE_AGENT_VOICE`, `VOICE_AGENT_NAME`, `VOICE_AGENT_PROJECT_NAME`, shared-project values, and `MAX_CONCURRENT_SESSIONS`. |

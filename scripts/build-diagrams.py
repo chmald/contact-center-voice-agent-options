@@ -167,7 +167,7 @@ def page_architecture() -> Page:
     p.group("🧠 AI tier · ONE Foundry resource · region AZURE_LOCATION (e.g. centralus)", 1220, 110, 640, 830, AI)
     vl = p.tile("Voice Live API · model mode", "Managed gpt-realtime-mini · no deployment", 1250, 340, 580, 80, AI, "speech")
     rt = p.tile("Azure OpenAI Realtime API", "Global Standard deployment gpt-realtime-2.1-mini", 1250, 440, 580, 80, AI, "openai")
-    va = p.tile("Voice Live agent mode → Foundry voice agent", "Project 'voice-agents' · versioned agent · managed gpt-realtime-2.1-mini", 1250, 540, 580, 80, WARN, "foundry", WARN_FILL, True)
+    va = p.tile("Foundry voice agent (project route)", "Project 'voice-agents' · versioned agent · managed gpt-realtime-2.1-mini", 1250, 540, 580, 80, WARN, "foundry", WARN_FILL, True)
     p.tile("Azure AI Search", "index 'knowledge' · keyword + semantic ranker · called by the shared RAG tool (managed identity)", 1250, 680, 580, 70, AI, "search")
     p.note(
         "<b>Capacity</b><br>"
@@ -186,7 +186,7 @@ def page_architecture() -> Page:
     p.edge(twilio, core, BLUE, "Media Streams", exit_="exitX=1;exitY=0.5;", entry="entryX=0;entryY=0.95;", pos=0.1, both=True, straight=True)
     p.edge(vl_app, vl, AI, "model", exit_=R, entry="", pos=0.0)
     p.edge(rt_app, rt, AI, "deployment", exit_=R, entry="", pos=0.0)
-    p.edge(va_app, va, WARN, "agent", exit_=R, entry="", dashed=True, pos=0.0)
+    p.edge(va_app, va, WARN, "project route", exit_=R, entry="", dashed=True, pos=0.0)
     return p
 
 
@@ -210,7 +210,7 @@ def page_three_ways() -> Page:
          ("Deployment quota (RPM units)", "REALTIME_DEPLOYMENT_CAPACITY (default 10)<br>Pooled per subscription + model version · fails at deploy AND under load", BAD_FILL, USER)),
         ("Foundry voice agent", "PREVIEW", WARN, WARN_FILL, True,
          "No session.update and no greeting — the agent owns instructions, tools, voice, greeting, VAD, noise, echo, transcription; bridge streams audio and runs tools",
-         "wss://&lt;foundry&gt;.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&amp;agent-name=…&amp;agent-project-name=…",
+         "wss://&lt;foundry&gt;.services.ai.azure.com/api/projects/&lt;p&gt;/agents/&lt;a&gt;/endpoint/protocols/voice?api-version=2025-11-15-preview  + Foundry-Features: VoiceAgents=V1Preview",
          ("Versioned agent in a Foundry project", "Managed gpt-realtime-2.1-mini · traces, stored audio, evaluations", "foundry"),
          ("Same per-resource Voice Live limits", "Shared with the Voice Live app on the same resource<br>Agent Service: 60-min sessions · Entra ID only", WARN_FILL, WARN)),
     ]

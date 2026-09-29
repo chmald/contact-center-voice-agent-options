@@ -31,7 +31,7 @@ All three share one browser client, one WebSocket bridge, one agent profile, one
 | **Fails early or under load?** | Under load (throttling) | At deploy time (`InsufficientQuota`) and under load | Under load (throttling) |
 | **How to get more** | Azure support request (raise new connections/min; TPM = NCPM × 4,000) | Azure OpenAI quota request; can be refused for versions near retirement | Same as Voice Live |
 | **Model lifecycle** | Service-managed | You manage versions, upgrade policy, and retirement dates | Service-managed; pin behaviour with agent versions |
-| **Wire protocol** | `wss://…/voice-live/realtime?api-version=2026-07-15&model=…` | `wss://…/openai/v1/realtime?model=<deployment>` | `wss://…/voice-live/realtime?api-version=2026-07-15&agent-name=…&agent-project-name=…` |
+| **Wire protocol** | `wss://…/voice-live/realtime?api-version=2026-07-15&model=…` | `wss://…/openai/v1/realtime?model=<deployment>` | `wss://…/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` + `Foundry-Features: VoiceAgents=V1Preview` |
 | **Auth** | Entra ID (key locally) | Entra ID (key locally) | **Entra ID only** |
 | **Audio pipeline** | Azure semantic VAD, deep noise suppression, echo cancellation, built-in transcription | Semantic/server VAD, near/far-field noise reduction, transcription needs its own deployment | Same as Voice Live |
 | **Tools / RAG in this demo** | Shared `search_knowledge_base` + record lookup, run by the bridge | Same | Same functions declared on the agent, run by the bridge |

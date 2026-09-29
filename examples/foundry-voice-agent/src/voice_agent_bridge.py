@@ -1,17 +1,21 @@
 """Foundry voice agent (preview) bridge specifics.
 
-A Foundry voice agent is a Foundry Agent Service agent (``kind: voice``) served by
-Voice Live in *agent mode*. The wire protocol is the Voice Live WebSocket with the
-agent identified instead of a model:
+A Foundry voice agent is a Foundry Agent Service agent (``kind: voice``). The default
+route is the project-scoped endpoint used by the Foundry portal sample (verified live
+2026-09-29: greeting, tool call, and spoken answer all work):
+
+``wss://<foundry>.services.ai.azure.com/api/projects/<p>/agents/<a>/endpoint/protocols/voice?api-version=2025-11-15-preview``
+with the ``Foundry-Features: VoiceAgents=V1Preview`` header.
+
+``VOICE_AGENT_ROUTE=voice-live`` keeps the older Voice Live agent-mode route. For
+``kind: voice`` agents it currently fails server-side ("Session configuration failed
+after 5 attempts ... invalid_session_update_message", close 1008) even when the client
+sends nothing, so it is kept only for classic agent-mode experiments:
 
 ``wss://<foundry>.services.ai.azure.com/voice-live/realtime?api-version=<v>&agent-name=<a>&agent-project-name=<p>``
 
 (the same query parameters the ``azure-ai-voicelive`` SDK builds from
-``connect(agent_name=..., project_name=...)``). ``VOICE_AGENT_ROUTE=project`` instead uses
-the project-scoped route from the Foundry portal sample:
-
-``wss://<foundry>.services.ai.azure.com/api/projects/<p>/agents/<a>/endpoint/protocols/voice?api-version=2025-11-15-preview``
-with the ``Foundry-Features: VoiceAgents=V1Preview`` header.
+``connect(agent_name=..., project_name=...)``).
 
 Differences from the Voice Live example:
 
@@ -66,7 +70,7 @@ class VoiceAgentSettings:
     voice_label: str = "en-US-Ava:DragonHDLatestNeural"
     turn_detection: str = "azure_semantic_vad"
     transcription_model: str | None = None
-    route: str = "voice-live"
+    route: str = "project"
     project_route_api_version: str = DEFAULT_PROJECT_ROUTE_API_VERSION
     send_session_config: bool = False
 
@@ -98,7 +102,7 @@ class VoiceAgentSettings:
             voice_label=(os.getenv("VOICE_AGENT_VOICE") or "en-US-Ava:DragonHDLatestNeural").strip(),
             turn_detection=(os.getenv("VOICE_AGENT_TURN_DETECTION") or "azure_semantic_vad").strip(),
             transcription_model=transcription,
-            route=(os.getenv("VOICE_AGENT_ROUTE") or "voice-live").strip().lower(),
+            route=(os.getenv("VOICE_AGENT_ROUTE") or "project").strip().lower(),
             project_route_api_version=(
                 os.getenv("VOICE_AGENT_PROJECT_API_VERSION") or DEFAULT_PROJECT_ROUTE_API_VERSION
             ).strip(),

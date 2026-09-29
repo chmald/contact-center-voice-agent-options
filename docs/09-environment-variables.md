@@ -83,8 +83,8 @@ Written by `scripts\use-shared-platform.ps1` from the `platform\` outputs. Empty
 | `VOICE_AGENT_PROJECT_ENDPOINT` | hook | Bicep | Used by `scripts\create-voice-agent.py`. |
 | `VOICE_AGENT_ENDPOINT` | runtime | Bicep | `https://<foundry>.services.ai.azure.com` |
 | `VOICE_AGENT_VERSION` | runtime | empty (latest) | Pin an agent version. |
-| `VOICE_AGENT_API_VERSION` | runtime | `2026-07-15` | Voice Live API version for agent mode. |
-| `VOICE_AGENT_ROUTE` | runtime | `voice-live` | `voice-live` = `/voice-live/realtime?agent-name=…&agent-project-name=…`; `project` = portal sample route `/api/projects/<p>/agents/<a>/endpoint/protocols/voice` with `Foundry-Features: VoiceAgents=V1Preview`. |
+| `VOICE_AGENT_API_VERSION` | runtime | `2026-07-15` | Voice Live API version; used only with `VOICE_AGENT_ROUTE=voice-live`. |
+| `VOICE_AGENT_ROUTE` | runtime | `project` | `project` = Foundry portal sample route `/api/projects/<p>/agents/<a>/endpoint/protocols/voice` with `Foundry-Features: VoiceAgents=V1Preview` (verified live). `voice-live` = `/voice-live/realtime?agent-name=…&agent-project-name=…`; currently fails for `kind: voice` agents (server closes with 1008 after "Session configuration failed after 5 attempts"). |
 | `VOICE_AGENT_PROJECT_API_VERSION` | runtime | `2025-11-15-preview` | API version for the `project` route. |
 | `VOICE_AGENT_SEND_SESSION_CONFIG` | runtime | `false` | `true` sends an audio-only `session.update`; by default the agent owns the session (greeting, VAD, noise, echo, transcription). |
 | `VOICE_AGENT_TURN_DETECTION` | runtime | `azure_semantic_vad` | Only used when `VOICE_AGENT_SEND_SESSION_CONFIG=true`; the agent definition sets Azure semantic VAD. |

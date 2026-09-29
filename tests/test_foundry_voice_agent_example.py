@@ -54,10 +54,10 @@ def _bridge(profile_path: Path, settings: VoiceAgentSettings, tokens: FakeTokenP
     return bridge, emitted
 
 
-async def test_url_uses_agent_mode_query_not_model(profile_path):
+async def test_voice_live_route_uses_agent_mode_query_not_model(profile_path):
     bridge, _ = _bridge(
         profile_path,
-        VoiceAgentSettings(endpoint="https://demo.services.ai.azure.com/", project_name="voice-agents", agent_version="3"),
+        VoiceAgentSettings(endpoint="https://demo.services.ai.azure.com/", project_name="voice-agents", agent_version="3", route="voice-live"),
     )
     parsed = urlsplit(await bridge.build_url())
     assert (parsed.scheme, parsed.netloc, parsed.path) == ("wss", "demo.services.ai.azure.com", "/voice-live/realtime")
@@ -71,7 +71,7 @@ async def test_url_uses_agent_mode_query_not_model(profile_path):
 
 async def test_headers_are_entra_only(profile_path):
     tokens = FakeTokenProvider()
-    bridge, _ = _bridge(profile_path, VoiceAgentSettings(endpoint="https://d", project_name="p"), tokens)
+    bridge, _ = _bridge(profile_path, VoiceAgentSettings(endpoint="https://d", project_name="p", route="voice-live"), tokens)
     assert await bridge.build_headers() == {"Authorization": "Bearer fake-token"}
     assert tokens.scopes == [VOICE_AGENT_SCOPE]
 
@@ -92,11 +92,11 @@ def test_optional_session_update_carries_audio_pipeline_only(profile_path):
     assert session["input_audio_transcription"] == {"model": "azure-speech"}
 
 
-async def test_project_route_matches_the_foundry_portal_sample(profile_path):
+async def test_default_project_route_matches_the_foundry_portal_sample(profile_path):
     tokens = FakeTokenProvider()
     bridge, _ = _bridge(
         profile_path,
-        VoiceAgentSettings(endpoint="https://demo.services.ai.azure.com", project_name="voice-agents", agent_name="my agent", route="project"),
+        VoiceAgentSettings(endpoint="https://demo.services.ai.azure.com", project_name="voice-agents", agent_name="my agent"),
         tokens,
     )
     assert await bridge.build_url() == (
@@ -167,8 +167,9 @@ async def test_agent_function_call_is_answered_by_shared_rag_tool(profile_path, 
     finally:
         await server.stop()
 
-    query = parse_qs(urlsplit(server.path).query)
-    assert query["agent-name"] == ["voice-agent-demo"] and "model" not in query
+    parsed = urlsplit(server.path)
+    assert parsed.path == "/api/projects/voice-agents/agents/voice-agent-demo/endpoint/protocols/voice"
+    assert server.headers.get("foundry-features") == "VoiceAgents=V1Preview"
     outputs = [
         json.loads(e["item"]["output"])
         for e in server.received_events

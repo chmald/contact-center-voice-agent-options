@@ -4,6 +4,18 @@ Change history for the reusable demo pattern. Entries are newest-first.
 
 ---
 
+## [1.2.2] - 2026-09-29
+
+### Fixed
+
+- **Foundry voice agent disconnected shortly after the session started.** Root cause (reproduced live): the Voice Live agent-mode route (`/voice-live/realtime?agent-name=…&agent-project-name=…`) fails server-side for `kind: voice` agents - `session.created`, then five `invalid_session_update_message` errors and close `1008` "Session configuration failed after 5 attempts" - even when the client sends nothing. The default is now the **project route from the Foundry portal sample**: `/api/projects/<p>/agents/<a>/endpoint/protocols/voice?api-version=2025-11-15-preview` + `Foundry-Features: VoiceAgents=V1Preview` (`VOICE_AGENT_ROUTE=project`, also set in Bicep). Verified live through the real `VoiceAgentBridge`: agent greeting, `search_knowledge_base` tool call answered by the shared RAG tool, spoken answer.
+
+### Added
+
+- `scripts\probe-voice-agent.py`: connects to a voice agent on either route with your Entra sign-in, optionally sends a text turn, and prints every server event plus the close code/reason.
+
+---
+
 ## [1.2.1] - 2026-09-29
 
 ### Fixed

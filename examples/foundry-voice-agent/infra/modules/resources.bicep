@@ -228,6 +228,14 @@ var baseEnv = [
     value: voiceAgentName
   }
   {
+    name: 'VOICE_AGENT_ROUTE'
+    value: 'project'
+  }
+  {
+    name: 'VOICE_AGENT_PROJECT_API_VERSION'
+    value: '2025-11-15-preview'
+  }
+  {
     name: 'VOICE_AGENT_API_VERSION'
     value: '2026-07-15'
   }
