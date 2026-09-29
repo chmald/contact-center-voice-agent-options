@@ -16,10 +16,9 @@ Common failure modes for the Voice Live vs. Realtime API vs. Foundry voice-agent
 | Foundry voice-agent `postprovision` hook fails | Missing `azure-ai-projects`, deploying user lacks Foundry User, or project endpoint is wrong | Install `scripts\requirements-agent.txt`, verify Foundry User, and check `VOICE_AGENT_PROJECT_ENDPOINT` | [Foundry voice-agent postprovision](#foundry-voice-agent-postprovision) |
 | Agent closes on connect or is not found | `VOICE_AGENT_NAME`, `VOICE_AGENT_PROJECT`, or `VOICE_AGENT_VERSION` does not match a published agent | Re-run `azd hooks run postprovision` and verify env values | [Foundry voice-agent connection](#foundry-voice-agent-connection) |
 | Key auth rejected in agent mode | Agent mode supports Entra ID only | Remove API-key env vars and use managed identity/local Azure login | [Foundry voice-agent connection](#foundry-voice-agent-connection) |
-| Agent-mode `session.update` rejects fields | Bridge sent instructions, tools, or voice instead of audio pipeline only | Remove those fields; the agent owns instructions/tools/voice | [Foundry voice-agent session contract](#foundry-voice-agent-session-contract) |
+| `Overriding instructions in response.create is not supported with Agent service` or agent-mode `session.update` rejected | Bridge sent a greeting with `instructions` or session config the agent owns | Use the current bridge (no greeting override, no `session.update` by default); keep `VOICE_AGENT_SEND_SESSION_CONFIG` unset; re-run `azd hooks run postprovision` so the agent carries the greeting | [Foundry voice-agent session contract](#foundry-voice-agent-session-contract) |
 | Voice Live and voice agent throttle each other | Shared platform uses one Foundry resource for both managed-model options | Run them one at a time or use separate resources for capacity tests | [Voice Live service limits](#voice-live-service-limits) |
 | `azd` reports hook path escaping project root | Hook points outside the example directory | Use the in-project wrapper hooks under `examples\*\hooks\` | [azd hook wrapper paths](#azd-hook-wrapper-paths) |
-
 | Realtime rejects `api-version` or `OpenAI-Beta` | Preview/beta endpoint pattern was used | Use `/openai/v1/realtime?model=<deployment>` and no beta header | [Realtime API session contract](#realtime-api-session-contract) |
 | `conversation_already_has_active_response` | Follow-up `response.create` sent before function-call `response.done` | Keep the tested bridge sequencing | [Tool-call response sequencing](#tool-call-response-sequencing) |
 | Long pauses under load before errors | TPM ceiling or capacity saturation | Reduce tokens per call, lower concurrency, raise quota or capacity | [Load latency and 429s](#load-latency-and-429s) |
@@ -387,12 +386,13 @@ Then redo the TPM and service-limit math.
 
 **Symptoms**
 
+- `Overriding instructions in response.create is not supported with Agent service.`
 - Agent-mode setup rejects `session.update` fields.
 - A copied Voice Live `session.update` with instructions/tools/voice fails.
 
 **Cause and fix**
 
-The Foundry voice agent owns instructions, function tools, voice, and storage settings. The bridge sends only the audio pipeline: PCM16 24 kHz formats, Azure semantic VAD, deep noise suppression, echo cancellation, and transcription. Remove instructions, tools, tool choice, and voice from agent-mode `session.update`; update `examples\foundry-voice-agent\src\voice_agent_bridge.py` only if the service changes the supported audio fields.
+The Foundry voice agent owns instructions, function tools, voice, the greeting, the audio pipeline (Azure semantic VAD, deep noise suppression, echo cancellation, transcription), and storage. Agent Service rejects `response.create` with `instructions`, so the bridge never sends the greeting itself; `scripts\create-voice-agent.py` stores it as a `template` greeting on the agent. By default the bridge also sends **no** `session.update` (matching the Foundry portal sample) and waits for `session.created`. Fix: redeploy the current bridge and re-run `azd hooks run postprovision` to publish an agent version with the greeting and audio settings. `VOICE_AGENT_SEND_SESSION_CONFIG=true` re-enables an audio-only `session.update` for experiments. If you connect the app to an agent created in the portal, its greeting and audio settings come from the portal configuration.
 
 ---
 

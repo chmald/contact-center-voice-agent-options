@@ -76,8 +76,13 @@ async def test_headers_are_entra_only(profile_path):
     assert tokens.scopes == [VOICE_AGENT_SCOPE]
 
 
-def test_session_update_carries_audio_pipeline_but_not_agent_owned_fields(profile_path):
+def test_no_session_update_by_default_because_the_agent_owns_the_session(profile_path):
     bridge, _ = _bridge(profile_path, VoiceAgentSettings(endpoint="https://d", project_name="p"))
+    assert bridge.build_session_update() is None
+
+
+def test_optional_session_update_carries_audio_pipeline_only(profile_path):
+    bridge, _ = _bridge(profile_path, VoiceAgentSettings(endpoint="https://d", project_name="p", send_session_config=True))
     session = bridge.build_session_update()["session"]
     for agent_owned in ("instructions", "tools", "tool_choice", "voice", "temperature"):
         assert agent_owned not in session
@@ -85,6 +90,47 @@ def test_session_update_carries_audio_pipeline_but_not_agent_owned_fields(profil
     assert session["turn_detection"]["type"] == "azure_semantic_vad"
     assert session["input_audio_noise_reduction"] == {"type": "azure_deep_noise_suppression"}
     assert session["input_audio_transcription"] == {"model": "azure-speech"}
+
+
+async def test_project_route_matches_the_foundry_portal_sample(profile_path):
+    tokens = FakeTokenProvider()
+    bridge, _ = _bridge(
+        profile_path,
+        VoiceAgentSettings(endpoint="https://demo.services.ai.azure.com", project_name="voice-agents", agent_name="my agent", route="project"),
+        tokens,
+    )
+    assert await bridge.build_url() == (
+        "wss://demo.services.ai.azure.com/api/projects/voice-agents/agents/my%20agent/endpoint/protocols/voice"
+        "?api-version=2025-11-15-preview"
+    )
+    assert await bridge.build_headers() == {"Authorization": "Bearer fake-token", "Foundry-Features": "VoiceAgents=V1Preview"}
+    with pytest.raises(ValueError, match="VOICE_AGENT_ROUTE"):
+        VoiceAgentSettings(endpoint="https://d", project_name="p", route="other")
+
+
+async def test_connect_sends_no_instruction_override_or_session_config(profile_path):
+    server = FakeRealtimeServer(dialect="beta")
+    await server.start()
+    try:
+        profile = load_profile(profile_path)  # keeps the profile greeting on purpose
+        assert profile.greeting
+        emitted: list[dict[str, Any]] = []
+
+        async def emit(message):
+            emitted.append(message)
+
+        bridge = VoiceAgentBridge(
+            profile, ToolRegistry.from_profile(profile), emit, SessionMetrics("g"), "g",
+            settings=VoiceAgentSettings(endpoint=server.url, project_name="voice-agents"),
+            token_provider=FakeTokenProvider(),
+        )
+        await bridge.connect()
+        await bridge.close()
+    finally:
+        await server.stop()
+    types = [e.get("type") for e in server.received_events]
+    assert "session.update" not in types
+    assert not any(e.get("type") == "response.create" and "instructions" in (e.get("response") or {}) for e in server.received_events)
 
 
 def test_settings_require_endpoint_and_project(monkeypatch):
@@ -152,6 +198,9 @@ def test_agent_definition_is_built_from_the_shared_profile(profile_path):
     assert all(t["type"] == "function" for t in definition["tools"])
     assert "handler_config" not in json.dumps(definition)  # server never sees local handler wiring
     assert definition["audio"]["output"] == {"voice": "en-US-Ava:DragonHDLatestNeural", "voice_type": "azure-standard"}
+    assert definition["audio"]["input"]["turn_detection"] == {"type": "azure_semantic_vad"}
+    assert definition["audio"]["input"]["transcription"] == {"model": "azure-speech"}
+    assert definition["greeting"] == {"type": "template", "text": profile["greeting"]}
     assert module.voice_config("marin") == {"voice": "marin", "voice_type": "openai"}
     assert definition["store"] is True
 
@@ -163,6 +212,8 @@ def test_agent_definition_is_accepted_by_the_sdk_model(profile_path):
     sdk = models.VoiceAgentDefinition(definition)
     round_trip = sdk.as_dict()
     assert round_trip["kind"] == "voice"
+    assert type(sdk.greeting).__name__ == "VoiceAgentTemplateGreetingConfig"
+    assert type(sdk.audio.input.turn_detection).__name__ == "VoiceAgentAzureSemanticVadTurnDetection"
     assert round_trip["tools"][0]["type"] == "function"
 
 

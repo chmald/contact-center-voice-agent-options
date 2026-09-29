@@ -7,15 +7,22 @@ agent identified instead of a model:
 ``wss://<foundry>.services.ai.azure.com/voice-live/realtime?api-version=<v>&agent-name=<a>&agent-project-name=<p>``
 
 (the same query parameters the ``azure-ai-voicelive`` SDK builds from
-``connect(agent_name=..., project_name=...)``). Differences from the Voice Live
-example:
+``connect(agent_name=..., project_name=...)``). ``VOICE_AGENT_ROUTE=project`` instead uses
+the project-scoped route from the Foundry portal sample:
 
-- The agent version owns **instructions, tools, voice, and storage**. They are created
-  from ``config/agent-profile.json`` by ``scripts/create-voice-agent.py``; this bridge
-  never sends instructions or tool definitions.
-- The session update carries only the per-connection audio pipeline (formats, turn
-  detection, noise suppression, echo cancellation, input transcription) so all three
-  examples process audio identically.
+``wss://<foundry>.services.ai.azure.com/api/projects/<p>/agents/<a>/endpoint/protocols/voice?api-version=2025-11-15-preview``
+with the ``Foundry-Features: VoiceAgents=V1Preview`` header.
+
+Differences from the Voice Live example:
+
+- The agent version owns **instructions, tools, voice, greeting, the audio pipeline
+  (turn detection, noise suppression, echo cancellation, transcription), and storage**.
+  They are created from ``config/agent-profile.json`` by ``scripts/create-voice-agent.py``.
+- The bridge therefore sends **no session.update and no greeting** by default: Agent
+  Service rejects ``response.create`` with ``instructions`` ("Overriding instructions in
+  response.create is not supported with Agent service"), and the portal sample sends no
+  session configuration. ``VOICE_AGENT_SEND_SESSION_CONFIG=true`` re-enables an audio-only
+  session.update for experiments.
 - Function tools on the agent are **client-executed**: the model emits the same
   ``response.function_call_arguments.done`` event and the shared bridge answers it
   through the shared ``ToolRegistry`` - including the shared ``search_knowledge_base``
@@ -28,7 +35,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 from voiceagent_core.auth import TokenProvider, build_auth_headers
 from voiceagent_core.bridge import RealtimeStyleBridge
@@ -39,6 +46,9 @@ from voiceagent_core.tools import ToolRegistry
 VOICE_AGENT_SCOPE = "https://ai.azure.com/.default"
 DEFAULT_API_VERSION = "2026-07-15"
 DEFAULT_AGENT_NAME = "voice-agent-demo"
+DEFAULT_PROJECT_ROUTE_API_VERSION = "2025-11-15-preview"
+FOUNDRY_FEATURES_HEADER = {"Foundry-Features": "VoiceAgents=V1Preview"}
+ROUTES = {"voice-live", "project"}
 TURN_DETECTION_TYPES = {"azure_semantic_vad", "azure_semantic_vad_multilingual", "server_vad"}
 NATIVE_TRANSCRIPTION_MODELS = {"gpt-realtime", "gpt-realtime-mini"}
 
@@ -56,8 +66,13 @@ class VoiceAgentSettings:
     voice_label: str = "en-US-Ava:DragonHDLatestNeural"
     turn_detection: str = "azure_semantic_vad"
     transcription_model: str | None = None
+    route: str = "voice-live"
+    project_route_api_version: str = DEFAULT_PROJECT_ROUTE_API_VERSION
+    send_session_config: bool = False
 
     def __post_init__(self) -> None:
+        if self.route not in ROUTES:
+            raise ValueError(f"VOICE_AGENT_ROUTE must be one of: {', '.join(sorted(ROUTES))}")
         if self.turn_detection not in TURN_DETECTION_TYPES:
             allowed = ", ".join(sorted(TURN_DETECTION_TYPES))
             raise ValueError(f"VOICE_AGENT_TURN_DETECTION must be one of: {allowed}")
@@ -83,6 +98,12 @@ class VoiceAgentSettings:
             voice_label=(os.getenv("VOICE_AGENT_VOICE") or "en-US-Ava:DragonHDLatestNeural").strip(),
             turn_detection=(os.getenv("VOICE_AGENT_TURN_DETECTION") or "azure_semantic_vad").strip(),
             transcription_model=transcription,
+            route=(os.getenv("VOICE_AGENT_ROUTE") or "voice-live").strip().lower(),
+            project_route_api_version=(
+                os.getenv("VOICE_AGENT_PROJECT_API_VERSION") or DEFAULT_PROJECT_ROUTE_API_VERSION
+            ).strip(),
+            send_session_config=(os.getenv("VOICE_AGENT_SEND_SESSION_CONFIG") or "").strip().lower()
+            in {"1", "true", "yes", "on"},
         )
 
     def resolved_transcription_model(self) -> str:
@@ -120,6 +141,8 @@ class VoiceAgentBridge(RealtimeStyleBridge):
         return params
 
     async def build_url(self) -> str:
+        if self.settings.route == "project":
+            return self._project_route_url()
         parsed = urlsplit(self.settings.endpoint)
         if parsed.scheme in {"ws", "wss"}:
             return _merge_query(self.settings.endpoint, self._agent_params(), keep_existing=True)
@@ -128,11 +151,33 @@ class VoiceAgentBridge(RealtimeStyleBridge):
         base = urlunsplit(("wss", parsed.netloc, "/voice-live/realtime", "", ""))
         return _merge_query(base, self._agent_params(), keep_existing=False)
 
+    def _project_route_url(self) -> str:
+        parsed = urlsplit(self.settings.endpoint)
+        scheme = {"https": "wss", "http": "ws"}.get(parsed.scheme, parsed.scheme)
+        if scheme not in {"ws", "wss"} or not parsed.netloc:
+            raise ValueError("VOICE_AGENT_ENDPOINT must start with https://, ws://, or wss://")
+        path = (
+            f"/api/projects/{quote(self.settings.project_name, safe='')}"
+            f"/agents/{quote(self.settings.agent_name, safe='')}/endpoint/protocols/voice"
+        )
+        query = urlencode({"api-version": self.settings.project_route_api_version})
+        return urlunsplit((scheme, parsed.netloc, path, query, ""))
+
     async def build_headers(self) -> dict[str, str]:
         # Agent mode is Entra-only, so no API key is ever passed.
-        return await build_auth_headers(None, VOICE_AGENT_SCOPE, self.token_provider)
+        headers = await build_auth_headers(None, VOICE_AGENT_SCOPE, self.token_provider)
+        if self.settings.route == "project":
+            headers.update(FOUNDRY_FEATURES_HEADER)
+        return headers
 
-    def build_session_update(self) -> dict[str, Any]:
+    async def send_greeting(self) -> None:
+        """The agent speaks its own greeting (agent definition), so the bridge sends nothing."""
+
+        return None
+
+    def build_session_update(self) -> dict[str, Any] | None:
+        if not self.settings.send_session_config:
+            return None
         session: dict[str, Any] = {
             "modalities": ["text", "audio"],
             "input_audio_format": "pcm16",

@@ -14,6 +14,8 @@ Step-by-step `azd` deployment for the reusable browser voice-agent comparison re
 
 ## Phase overview
 
+![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
+
 | Phase | What you do | Typical time | Validation at end |
 |---|---|---:|---|
 | 0 | Authenticate `az` and `azd` to the intended tenant and subscription | 2-5 min | `az account show` matches the target |

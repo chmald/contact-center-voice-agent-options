@@ -20,13 +20,15 @@ For production today, choose between these two GA API paths. Consider the Foundr
 
 ## Third option: Foundry voice agent (public preview)
 
-The third example, `examples\foundry-voice-agent\`, is a Foundry Agent Service voice agent served by Voice Live in agent mode. It uses `wss://<foundry>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&agent-name=<agent>&agent-project-name=<project>`, Entra ID only, and a managed model default of `gpt-realtime-2.1-mini`. The agent owns instructions, function-tool declarations, voice, `store: true`, and versions in a Foundry project; the bridge sends only the audio pipeline and still executes tools through the shared `ToolRegistry`, so RAG behavior stays aligned.
+The third example, `examples\foundry-voice-agent\`, is a Foundry Agent Service voice agent served by Voice Live in agent mode. It uses `wss://<foundry>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&agent-name=<agent>&agent-project-name=<project>`, Entra ID only, and a managed model default of `gpt-realtime-2.1-mini`. The agent owns instructions, function-tool declarations, voice, greeting, audio pipeline, `store: true`, and versions in a Foundry project; the bridge sends no session config (Agent Service rejects per-response instruction overrides) and still executes tools through the shared `ToolRegistry`, so RAG behavior stays aligned.
 
 Capacity-wise, it behaves like Voice Live for this demo: no model deployment and no Azure OpenAI quota, but it shares the resource's Voice Live new-connection and TPM limits when run on the shared platform. Treat it as a preview governance/observability option, not a production replacement for the two GA API paths.
 
 > **PDF note:** `docs\assets\comparison-one-pager.pdf` reflects the two-API version dated 2026-09-25. It was not regenerated for the preview voice-agent update.
 
 ## Side-by-side comparison
+
+![Three ways to connect](./assets/diagrams/02-three-ways-to-connect.png)
 
 | Dimension | Voice Live API example | Realtime API example |
 |---|---|---|

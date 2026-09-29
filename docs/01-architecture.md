@@ -22,7 +22,13 @@ Reference architecture for the Voice Live API vs. GPT Realtime API vs. Foundry v
 
 ## Architecture diagram
 
-> **Presentation-ready diagram**: [`assets\voice-live-vs-realtime-api-architecture.drawio`](./assets/voice-live-vs-realtime-api-architecture.drawio). The Mermaid view below is the text companion for review and diffs.
+![Solution architecture](./assets/diagrams/01-solution-architecture.png)
+
+![Three ways to connect](./assets/diagrams/02-three-ways-to-connect.png)
+
+![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
+
+> **Presentation-ready diagrams**: the PNGs above are exported from the 4-page [`assets\voice-live-vs-realtime-api-architecture.drawio`](./assets/voice-live-vs-realtime-api-architecture.drawio). Regenerate with `python scripts\build-diagrams.py` then `pwsh scripts\export-diagrams.ps1`. The Mermaid view below is the text companion for review and diffs.
 
 ```mermaid
 flowchart LR
@@ -91,7 +97,7 @@ flowchart LR
 | Example root | `examples\voice-live-api\` | `examples\realtime-api\` | `examples\foundry-voice-agent\` |
 | Bridge file | `examples\voice-live-api\src\voice_live_bridge.py` | `examples\realtime-api\src\realtime_api_bridge.py` | `examples\foundry-voice-agent\src\voice_agent_bridge.py` |
 | Endpoint | `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>` | `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>` | `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&agent-name=<agent>&agent-project-name=<project>` |
-| Session schema | Flat Voice Live schema | GA nested Realtime schema | Agent mode: only audio pipeline fields in `session.update`; instructions/tools/voice are stored on the agent |
+| Session schema | Flat Voice Live schema | GA nested Realtime schema | Agent mode: **no** `session.update` and no greeting `response.create` by default; instructions, tools, voice, greeting, and audio pipeline are stored on the agent |
 | Default model | `gpt-realtime-mini` | `gpt-realtime-2.1-mini` | `gpt-realtime-2.1-mini` |
 | Default voice | `en-US-Ava:DragonHDLatestNeural` | `marin` | `en-US-Ava:DragonHDLatestNeural` stored on the agent |
 | Model provisioning | Managed by Voice Live; no deployment in Bicep | `Microsoft.CognitiveServices/accounts/deployments` with Global Standard SKU | Managed by Voice Live through Agent Service; no Azure OpenAI deployment |
@@ -103,6 +109,8 @@ flowchart LR
 
 ## End-to-end data flow
 
+![Phone call flow](./assets/diagrams/03-phone-call-flow.png)
+
 1. The browser loads `/api/info`, then opens `WSS /ws` to the Container App.
 2. The FastAPI app admits the session if `active_sessions < MAX_CONCURRENT_SESSIONS`; otherwise it sends `{"type":"busy"}` and closes with code `1013`.
 3. The bridge gets an Entra token through `DefaultAzureCredential`; in Azure it uses the user-assigned managed identity client ID from `AZURE_CLIENT_ID`.
@@ -110,7 +118,7 @@ flowchart LR
    - Voice Live: `/voice-live/realtime` with `api-version=2026-07-15` and `model=<managed-model>`.
    - Realtime: `/openai/v1/realtime` with `model=<deployment-name>` and no `api-version`.
    - Foundry voice agent: `/voice-live/realtime` with `agent-name=<agent>`, `agent-project-name=<project>`, and optional `agent-version`.
-5. Voice Live and Realtime send `session.update` built from `config\agent-profile.json` plus API-specific audio, voice, VAD, transcription, tool, and token settings. In Foundry agent mode, `scripts\create-voice-agent.py` has already stored instructions, function tools, voice, and `store: true` on a versioned agent, so the bridge sends only the per-session audio pipeline.
+5. Voice Live and Realtime send `session.update` built from `config\agent-profile.json` plus API-specific audio, voice, VAD, transcription, tool, and token settings. In Foundry agent mode, `scripts\create-voice-agent.py` has already stored instructions, function tools, voice, a template greeting, the audio pipeline (Azure semantic VAD, deep noise suppression, echo cancellation, transcription), and `store: true` on a versioned agent, so the bridge sends no `session.update` and no greeting; it waits for `session.created` and streams audio. Agent Service rejects `response.create` with `instructions`.
 6. The browser captures microphone audio with `AudioWorklet`, resamples to 24 kHz PCM16, base64-encodes each chunk, and sends `{"type":"audio","audio":"..."}`.
 7. The bridge forwards audio chunks upstream as `input_audio_buffer.append`.
 8. Server VAD or semantic VAD emits `input_audio_buffer.speech_stopped`; the bridge marks turn start for TTFA.
@@ -172,7 +180,7 @@ The root README has the three-way comparison, while [`06-comparison-one-pager.md
 |---|---|---|---|
 | `examples\voice-live-api\src\voice_live_bridge.py` | Builds `/voice-live/realtime` URL with `api-version=2026-07-15`; flat session schema; Azure or OpenAI voice object; Azure semantic VAD; managed model string; sends instructions and tools each session. | Not used. | Not used. |
 | `examples\realtime-api\src\realtime_api_bridge.py` | Not used. | Builds `/openai/v1/realtime` URL with no `api-version`; GA nested session schema; deployment name in `model=`; optional transcription deployment; sends instructions and tools each session. | Not used. |
-| `examples\foundry-voice-agent\src\voice_agent_bridge.py` | Not used. | Not used. | Builds `/voice-live/realtime` URL with `agent-name` and `agent-project-name`; sends only audio pipeline settings because the agent owns instructions, tools, and voice. |
+| `examples\foundry-voice-agent\src\voice_agent_bridge.py` | Not used. | Not used. | Builds `/voice-live/realtime` URL with `agent-name` and `agent-project-name`; sends no session config or greeting because the agent owns them (optional `VOICE_AGENT_ROUTE=project` uses the portal's project-scoped route). |
 | `scripts\create-voice-agent.py` | Not used. | Not used. | Creates a Foundry Agent Service voice agent version from `config\agent-profile.json` through `azure-ai-projects` 2.7.0 with `allow_preview=True`. |
 | `examples\*\infra\modules\resources.bicep` | Creates Foundry resource and role assignments only; no model deployment. | Creates Foundry resource plus `accounts/deployments` for the realtime model. | Creates Foundry resource with `allowProjectManagement: true`, system identity, and a `Microsoft.CognitiveServices/accounts/projects@2025-06-01` project in standalone mode; shared mode uses the platform project. |
 | `examples\*\infra\main.parameters.json` | Uses `VOICE_LIVE_MODEL`, `VOICE_LIVE_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `AZURE_OPENAI_REALTIME_MODEL`, `AZURE_OPENAI_REALTIME_MODEL_VERSION`, `AZURE_OPENAI_REALTIME_DEPLOYMENT`, `REALTIME_DEPLOYMENT_CAPACITY`, `REALTIME_VERSION_UPGRADE_OPTION`, `REALTIME_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `VOICE_AGENT_MODEL`, `VOICE_AGENT_VOICE`, `VOICE_AGENT_NAME`, `VOICE_AGENT_PROJECT_NAME`, shared-project values, and `MAX_CONCURRENT_SESSIONS`. |
@@ -226,7 +234,7 @@ Learn guidance recommends WebRTC for low-latency browser audio on the Realtime A
 
 ### Foundry voice agent as preview third option
 
-The Foundry voice agent example is included as a public-preview third option, not a production recommendation. Its design decision is that the agent owns instructions, function-tool declarations, voice, storage, and versioning in a Foundry project, while the bridge owns the live audio pipeline and executes tools through the shared `ToolRegistry`. That keeps RAG and phone/browser behavior identical across all three examples while showing the governance and observability benefits of a Foundry-hosted agent.
+The Foundry voice agent example is included as a public-preview third option, not a production recommendation. Its design decision is that the agent owns instructions, function-tool declarations, voice, storage, and versioning in a Foundry project, including the greeting and audio pipeline settings, while the bridge streams audio and executes tools through the shared `ToolRegistry`. That keeps RAG and phone/browser behavior identical across all three examples while showing the governance and observability benefits of a Foundry-hosted agent.
 
 ### Managed identity and disabled local auth
 
@@ -264,7 +272,7 @@ The app is domain-neutral by design. The fictional **Contoso service desk** file
 |---|---|---|
 | `config\agent-profile.json` `assistant_name` | Name shown by `/api/info` and the browser subtitle. | Set a generic user-facing assistant name for the new demo domain. |
 | `config\agent-profile.json` `instructions` | System instructions sent in `session.update` for Voice Live/Realtime and stored on a Foundry voice agent version at agent-creation time. | Keep speech concise, tool-grounded, and domain appropriate. Do not include secrets or customer-specific facts. |
-| `config\agent-profile.json` `greeting` | Optional first spoken response after session setup. | Make it short enough for a voice demo. |
+| `config\agent-profile.json` `greeting` | Optional first spoken response after session setup (Voice Live/Realtime: bridge `response.create`; voice agent: stored as the agent's template greeting). | Make it short enough for a voice demo. |
 | `config\agent-profile.json` `tools[]` | Tool identity and schemas advertised to the model; for the voice agent, re-run `azd hooks run postprovision` after edits to publish a new agent version. | Tool `name`, `description`, and `parameters` are the highest-impact domain settings. The model decides whether to call a tool from these fields. |
 | `config\agent-profile.json` `tools[].handler` | Which registered Python handler executes the tool. | Use `record_lookup` or `current_time` unless the domain genuinely needs a new behavior. |
 | `config\agent-profile.json` `tools[].handler_config` | Handler-specific mapping such as data file, collection, key field, and argument name. | Point at the new sample data and key fields. |

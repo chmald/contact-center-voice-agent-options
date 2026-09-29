@@ -5,9 +5,11 @@ re-run by hand after editing the profile. Every run creates a new agent version;
 the app connects to the latest version unless ``VOICE_AGENT_VERSION`` pins one.
 
 The agent owns instructions, function tools (client-executed by the shared bridge,
-including the shared ``search_knowledge_base`` RAG tool), voice, and conversation
-storage. The audio pipeline (VAD, noise suppression, echo cancellation,
-transcription) is sent per session by the bridge so all three examples match.
+including the shared ``search_knowledge_base`` RAG tool), voice, the greeting, the
+audio pipeline (Azure semantic VAD, deep noise suppression, echo cancellation,
+transcription - the same settings the Voice Live example sends per session), and
+conversation storage. Agent Service does not accept per-response instruction
+overrides, so the greeting must live on the agent.
 
     python scripts/create-voice-agent.py \
         --project-endpoint https://<foundry>.services.ai.azure.com/api/projects/<project>
@@ -28,6 +30,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROFILE = ROOT / "config" / "agent-profile.json"
+NATIVE_TRANSCRIPTION_MODELS = {"gpt-realtime", "gpt-realtime-mini"}
 OPENAI_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
 
 
@@ -50,17 +53,31 @@ def build_definition(profile_path: Path, model: str, voice: str, store: bool = T
         }
         for tool in profile.get("tools", [])
     ]
-    return {
+    transcription = "gpt-4o-mini-transcribe" if model in NATIVE_TRANSCRIPTION_MODELS else "azure-speech"
+    definition: dict[str, Any] = {
         "kind": "voice",
         "model_type": "managed",
         "model": model,
         "instructions": profile["instructions"],
-        "audio": {"output": voice_config(voice)},
+        "audio": {
+            "input": {
+                "turn_detection": {"type": "azure_semantic_vad"},
+                "noise_reduction": {"type": "azure_deep_noise_suppression"},
+                "echo_cancellation": {"type": "server_echo_cancellation"},
+                "transcription": {"model": transcription},
+            },
+            "output": voice_config(voice),
+        },
         "output_modalities": ["audio"],
         "tools": tools,
         "tool_choice": "auto",
         "store": store,
     }
+    greeting = (profile.get("greeting") or "").strip()
+    if greeting:
+        # Template greetings are Handlebars; escape literal braces so profile text is spoken as-is.
+        definition["greeting"] = {"type": "template", "text": greeting.replace("{{", "\\{{")}
+    return definition
 
 
 def main() -> int:

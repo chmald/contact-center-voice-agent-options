@@ -91,7 +91,8 @@ class RealtimeStyleBridge(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def build_session_update(self) -> dict[str, Any]:
+    def build_session_update(self) -> dict[str, Any] | None:
+        """Return the session.update to send, or None when the service owns the session config."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -115,8 +116,19 @@ class RealtimeStyleBridge(abc.ABC):
         except TypeError:
             self.ws = await websockets.connect(url, extra_headers=headers, max_size=None)
 
-        await self._send_upstream(self.build_session_update())
-        await self._wait_for_session_ready()
+        session_update = self.build_session_update()
+        if session_update is not None:
+            await self._send_upstream(session_update)
+            await self._wait_for_session_ready()
+        else:
+            # Server-configured sessions (e.g. a Foundry voice agent) need no session.update;
+            # the session is usable once the service announces it.
+            await self._wait_for_session_ready(require_update=False)
+
+        await self.send_greeting()
+
+    async def send_greeting(self) -> None:
+        """Speak the profile greeting once. Subclasses whose service owns the greeting override this."""
 
         if self.profile.greeting:
             await self._send_upstream(
@@ -129,7 +141,7 @@ class RealtimeStyleBridge(abc.ABC):
             )
             self._active_response = True
 
-    async def _wait_for_session_ready(self) -> None:
+    async def _wait_for_session_ready(self, require_update: bool = True) -> None:
         assert self.ws is not None
         deadline = time.monotonic() + 10
         saw_created = False
@@ -145,11 +157,19 @@ class RealtimeStyleBridge(abc.ABC):
             event_type = event.get("type")
             if self._is(event_type, "session_created"):
                 saw_created = True
+                if not require_update:
+                    return
             if self._is(event_type, "session_ready"):
                 return
             if self._is(event_type, "error"):
                 message = self._error_message(event)
                 raise RuntimeError(f"Upstream session setup failed: {message}")
+            if not require_update and event_type == "conversation.created":
+                return
+            if not require_update and event_type not in (None, "error"):
+                # Any other server event before session.created still means the socket is live;
+                # hand it to the normal handler so nothing (e.g. greeting audio) is lost.
+                await self.handle_event(event)
         if not saw_created:
             raise TimeoutError("Timed out waiting for upstream session readiness")
 

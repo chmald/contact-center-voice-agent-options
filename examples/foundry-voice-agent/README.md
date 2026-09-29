@@ -11,7 +11,7 @@ Architecture: browser / ACS call / Twilio call -> FastAPI bridge on Azure Contai
 | | Voice Live example | This example |
 |---|---|---|
 | Connection | `.../voice-live/realtime?api-version=2026-07-15&model=<model>` | `.../voice-live/realtime?api-version=2026-07-15&agent-name=<agent>&agent-project-name=<project>` |
-| Instructions, tools, voice | Sent by the bridge in every `session.update` | Stored on a **versioned agent** in a Foundry project; the bridge sends only the audio pipeline |
+| Instructions, tools, voice, greeting, audio pipeline | Sent by the bridge (`session.update` + greeting `response.create`) | Stored on a **versioned agent** in a Foundry project; the bridge sends **no session config and no greeting** (Agent Service rejects `response.create` with `instructions`) |
 | Where the agent lives | Nowhere - the app is the agent | Foundry project (`accounts/projects`), visible in the Foundry portal with traces, stored transcripts/audio (`store: true`), and evaluations |
 | Auth | Entra ID (API key allowed locally) | Entra ID only |
 | Model / quota | Managed model, per-resource Voice Live limits | Same: managed model, **no deployment, no Azure OpenAI quota**, per-resource Voice Live limits |
@@ -56,7 +56,9 @@ After editing `config\agent-profile.json`, re-run `azd hooks run postprovision` 
 | `VOICE_AGENT_MODEL` | `gpt-realtime-2.1-mini` | Managed model; also `gpt-realtime-mini`, `gpt-realtime` |
 | `VOICE_AGENT_VOICE` | `en-US-Ava:DragonHDLatestNeural` | Stored on the agent |
 | `VOICE_AGENT_API_VERSION` | `2026-07-15` | Voice Live API version used in agent mode |
-| `VOICE_AGENT_TURN_DETECTION` | `azure_semantic_vad` | Sent per session |
+| `VOICE_AGENT_ROUTE` | `voice-live` | `project` uses the Foundry portal sample's route (`/api/projects/<p>/agents/<a>/endpoint/protocols/voice`, `Foundry-Features: VoiceAgents=V1Preview`) |
+| `VOICE_AGENT_SEND_SESSION_CONFIG` | `false` | `true` sends an audio-only `session.update` (experiments only) |
+| `VOICE_AGENT_TURN_DETECTION` | `azure_semantic_vad` | Only with `VOICE_AGENT_SEND_SESSION_CONFIG=true` |
 
 All common settings (`AZURE_LOCATION`, `AZURE_APP_LOCATION`, `MAX_CONCURRENT_SESSIONS`, telephony, search) are in [docs\09-environment-variables.md](../../docs/09-environment-variables.md).
 

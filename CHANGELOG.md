@@ -4,6 +4,21 @@ Change history for the reusable demo pattern. Entries are newest-first.
 
 ---
 
+## [1.2.1] - 2026-09-29
+
+### Fixed
+
+- **Foundry voice agent: `Overriding instructions in response.create is not supported with Agent service`.** The shared bridge greeted callers with `response.create` + `instructions`, which Agent Service rejects. The bridge now has `send_greeting()` and optional session config hooks: Voice Live and Realtime keep their behavior; `VoiceAgentBridge` sends **no greeting and no `session.update`** (matching the Foundry portal sample) and waits for `session.created`.
+- `scripts\create-voice-agent.py` now stores the profile greeting as a `template` greeting and the audio pipeline (Azure semantic VAD, deep noise suppression, echo cancellation, transcription) on the agent. Re-run `azd hooks run postprovision` to publish the new agent version.
+
+### Added
+
+- `VOICE_AGENT_ROUTE=project`: the project-scoped route from the Foundry portal sample (`/api/projects/<p>/agents/<a>/endpoint/protocols/voice?api-version=2025-11-15-preview` + `Foundry-Features: VoiceAgents=V1Preview`). Default stays `voice-live`.
+- `VOICE_AGENT_SEND_SESSION_CONFIG=true` to re-enable an audio-only `session.update` for experiments.
+- Tests: no instruction override or session config on connect, project route URL + header, greeting and audio input on the agent definition (87 tests).
+
+---
+
 ## [1.2.0] - 2026-09-29
 
 ### Added

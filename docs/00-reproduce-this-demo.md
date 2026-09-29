@@ -8,6 +8,8 @@ Single-page orchestrator for standing up all three browser voice-agent examples 
 
 ## What you end up with
 
+![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
+
 ```
 Browser with microphone
         |

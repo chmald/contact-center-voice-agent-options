@@ -16,6 +16,8 @@ pool. The browser demo is unchanged; everything here is opt-in.
 
 ## Topology
 
+![Solution architecture](./assets/diagrams/01-solution-architecture.png)
+
 ```text
                                         ┌──────────────── platform RG (centralus) ───────────────┐
 PSTN ─► ACS number ─► Event Grid ───────┤ ACS  ──────────────┐                                    │
@@ -34,6 +36,8 @@ Each example keeps its own Container App, ACR, and Log Analytics. Only the AI en
 index, and ACS resource are shared.
 
 ## Audio path
+
+![Phone call flow](./assets/diagrams/03-phone-call-flow.png)
 
 | Channel | On the wire | Conversion at the adapter | Barge-in |
 |---|---|---|---|
@@ -100,6 +104,8 @@ planning, or provision throughput") — https://learn.microsoft.com/en-us/azure/
 Azure OpenAI quotas and subscription-level quota — https://learn.microsoft.com/en-us/azure/ai-foundry/openai/quotas-limits
 
 ## Deploy (centralus, one subscription)
+
+![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
 
 Follow the multi-tenant auth gate first: confirm `az account show` matches the intended
 tenant and subscription, and use tenant-explicit `azd auth login --tenant-id`.
