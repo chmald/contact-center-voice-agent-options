@@ -70,6 +70,10 @@ resource foundry 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
 resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   parent: foundry
   name: projectName
+  // One child operation at a time on the account, or ARM returns RequestConflict.
+  dependsOn: [
+    realtimeDeployment
+  ]
   location: location
   tags: tags
   identity: {

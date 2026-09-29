@@ -43,6 +43,9 @@ param telephonyWebhookSecret string = ''
 param acsEventGridSecret string = ''
 @secure()
 param twilioAuthToken string = ''
+@secure()
+@description('Password Asterisk sends (websocket_client.conf) to /telephony/asterisk/media.')
+param asteriskWebsocketSecret string = ''
 param telephonyOverflowNumber string = ''
 
 var suffix = uniqueString(subscription().id, environmentName, location)
@@ -307,6 +310,11 @@ var telephonyEnv = empty(telephonyProviders) ? [] : concat([
     name: 'TWILIO_AUTH_TOKEN'
     secretRef: 'twilio-auth-token'
   }
+], empty(asteriskWebsocketSecret) ? [] : [
+  {
+    name: 'ASTERISK_WEBSOCKET_SECRET'
+    secretRef: 'asterisk-websocket-secret'
+  }
 ])
 var appSecrets = concat(useAcs && !empty(acsEventGridSecret) ? [
   {
@@ -322,6 +330,11 @@ var appSecrets = concat(useAcs && !empty(acsEventGridSecret) ? [
   {
     name: 'twilio-auth-token'
     value: twilioAuthToken
+  }
+], empty(asteriskWebsocketSecret) ? [] : [
+  {
+    name: 'asterisk-websocket-secret'
+    value: asteriskWebsocketSecret
   }
 ])
 

@@ -101,7 +101,8 @@ class Page:
         return cid
 
     def edge(self, src: str, dst: str, color: str, label: str = "", dashed: bool = False, exit_: str = "", entry: str = "",
-             pos: float = 0.0, both: bool = False, straight: bool = False) -> str:
+             pos: float = 0.0, both: bool = False, straight: bool = False,
+             points: list[tuple[int, int]] | None = None) -> str:
         cid = self._id("e")
         style = (
             ("" if straight else "edgeStyle=orthogonalEdgeStyle;") + f"rounded=1;html=1;endArrow=classic;strokeColor={color};strokeWidth=2;"
@@ -109,7 +110,9 @@ class Page:
         )
         self.cells.append(
             f'<mxCell id="{cid}" style="{style}" edge="1" parent="1" source="{src}" target="{dst}">'
-            '<mxGeometry relative="1" as="geometry" /></mxCell>'
+            + ('<mxGeometry relative="1" as="geometry"><Array as="points">'
+               + "".join(f'<mxPoint x="{px}" y="{py}" />' for px, py in points)
+               + '</Array></mxGeometry></mxCell>' if points else '<mxGeometry relative="1" as="geometry" /></mxCell>')
         )
         if label:
             self.cells.append(
@@ -139,7 +142,7 @@ def page_architecture() -> Page:
     p.group("👥 Callers", 40, 110, 250, 640, USER)
     browser = p.tile("🎙️ Browser", "Microphone · PCM16 24 kHz", 60, 160, 210, 70, USER)
     pstn = p.tile("📞 PSTN caller", "Any phone", 60, 290, 210, 70, USER)
-    pbx = p.tile("☎️ PBX (e.g. FreePBX)", "Extension / IVR option over SIP trunk", 60, 580, 210, 80, USER)
+    pbx = p.tile("☎️ PBX (Asterisk)", "SIP trunk via Twilio, or WSS media (Asterisk chan_websocket)", 60, 580, 210, 80, USER)
     sbc = p.tile("🏢 Contact center / SBC", "Existing platform", 60, 430, 210, 80, USER)
 
     p.group("📡 Telephony (optional)", 330, 110, 290, 640, BLUE)
@@ -150,8 +153,8 @@ def page_architecture() -> Page:
     p.group("⚡ App tier · Azure Container Apps · region AZURE_APP_LOCATION", 660, 110, 520, 830, BLUE)
     core = p.note(
         "<b>Shared core (identical in every app)</b><br>"
-        "• /ws browser socket · /telephony/acs · /telephony/twilio<br>"
-        "• Audio adapters: PCM 24 kHz (ACS) · μ-law 8 kHz ↔ 24 kHz (Twilio)<br>"
+        "• /ws browser · /telephony/acs · /telephony/twilio · /telephony/asterisk<br>"
+        "• Audio adapters: PCM 24 kHz (ACS, Asterisk slin24) · μ-law 8 kHz ↔ 24 kHz (Twilio)<br>"
         "• SessionHub: one admission cap (MAX_CONCURRENT_SESSIONS), overflow → human queue<br>"
         "• RealtimeStyleBridge: barge-in, tool calls, history trim, metrics<br>"
         "• Tools: search_knowledge_base (RAG) · record lookup · time",
@@ -180,6 +183,8 @@ def page_architecture() -> Page:
     p.edge(pstn, acs, USER, "", exit_=R.split("entry")[0], entry="entryX=0;entryY=0.3;")
     p.edge(sbc, acs, USER, "Direct Routing", exit_="exitX=1;exitY=0.5;", entry="entryX=0;entryY=0.8;", pos=-0.5)
     p.edge(pbx, twilio, USER, "SIP", exit_="exitX=1;exitY=0.5;", entry="entryX=0;entryY=0.5;")
+    p.edge(pbx, core, USER, "WSS media (chan_websocket)", exit_="exitX=0.5;exitY=1;", entry="entryX=0;entryY=0.93;", dashed=True, pos=-0.4, straight=True,
+           points=[(165, 730), (640, 730), (640, 300)])
     p.edge(acs, eg, BLUE, "", exit_="exitX=0.5;exitY=1;", entry="entryX=0.5;entryY=0;")
     p.edge(eg, core, BLUE, "webhook", exit_="exitX=1;exitY=0.5;", entry="entryX=0;entryY=0.75;", pos=0.1, straight=True)
     p.edge(acs, core, BLUE, "media WS", exit_="exitX=1;exitY=0.3;", entry="entryX=0;entryY=0.5;", pos=0.0, both=True, straight=True)
@@ -227,7 +232,7 @@ def page_three_ways() -> Page:
         p.edge(u, m, color, exit_=R)
         p.edge(m, lim, color, exit_=R, dashed=True)
         y += 220
-    p.note("<b>Same in all three:</b> browser UI · ACS and Twilio adapters · admission control · search_knowledge_base RAG tool (function tools are executed by the bridge; for the voice agent they are declared on the agent) · metrics · load probe. "
+    p.note("<b>Same in all three:</b> browser UI · ACS, Twilio, and Asterisk (chan_websocket) adapters · admission control · search_knowledge_base RAG tool (function tools are executed by the bridge; for the voice agent they are declared on the agent) · metrics · load probe. "
            "The voice agent is created from config/agent-profile.json by scripts/create-voice-agent.py (azd postprovision hook).",
            40, 820, 1720, 60, GREY, "#F3F2F1", "middle")
     return p
@@ -235,7 +240,7 @@ def page_three_ways() -> Page:
 
 def page_call_flow() -> Page:
     p = Page("call", "3 - Phone call flow", 1800, 780)
-    p.title("How a phone call reaches the agent (ACS shown; Twilio is equivalent)",
+    p.title("How a phone call reaches the agent (ACS shown; Twilio and Asterisk paths below)",
             "Slots are reserved when the call arrives and claimed when media connects, so extra callers get the overflow number instead of dead air.")
     caller = p.tile("📞 Caller", "dials the ACS number", 40, 120, 200, 80, USER)
     acs = p.tile("Azure Communication Services", "Call Automation", 330, 120, 260, 80, BLUE, "acs")
@@ -260,12 +265,14 @@ def page_call_flow() -> Page:
     p.edge(bridge, rag, AI, "9 function call → RAG", exit_="exitX=0.5;exitY=1;", entry="entryX=0.5;entryY=0;")
     p.note(
         "<b>10 · Agent speaks</b> — upstream audio → bridge → <i>AudioData</i> to ACS → caller.<br>"
-        "<b>11 · Caller interrupts</b> — upstream speech_started → bridge sends <i>StopAudio</i> (ACS) or <i>clear</i> (Twilio) so queued speech stops.<br>"
+        "<b>11 · Caller interrupts</b> — upstream speech_started → bridge sends <i>StopAudio</i> (ACS), <i>clear</i> (Twilio), or <i>FLUSH_MEDIA</i> (Asterisk) so queued speech stops.<br>"
         "<b>12 · Hang-up</b> — media socket closes → bridge closes upstream → slot released → voice_session_end logged with channel.",
         1060, 480, 680, 90, BLUE, "#EFF6FC", "middle")
     p.note(
-        "<b>Twilio / PBX path</b>: Twilio number or SIP Domain → signed POST /telephony/twilio/voice (reserve slot) → "
-        "TwiML &lt;Connect&gt;&lt;Stream&gt; with token → /telephony/twilio/media (claim) → μ-law 8 kHz ↔ PCM16 24 kHz → same bridge.",
+        "<b>Twilio path</b>: Twilio number or SIP Domain → signed POST /telephony/twilio/voice (reserve slot) → "
+        "TwiML &lt;Connect&gt;&lt;Stream&gt; with token → /telephony/twilio/media (claim) → μ-law 8 kHz ↔ PCM16 24 kHz → same bridge.<br>"
+        "<b>Asterisk path</b>: Dial(WebSocket/voice_agent/c(slin24)f(json)) → Asterisk connects to wss://&lt;app&gt;/telephony/asterisk/media "
+        "(Basic auth = ASTERISK_WEBSOCKET_SECRET) → MEDIA_START → slin24 frames = bridge format (no resampling) → barge-in FLUSH_MEDIA; busy → HANGUP.",
         40, 620, 1700, 50, GREY, "#F3F2F1", "middle")
     return p
 
@@ -279,7 +286,7 @@ def page_deployment() -> Page:
     p.tile("Foundry resource (AIServices)", "disableLocalAuth · allowProjectManagement", 100, 200, 560, 80, AI, "foundry")
     p.tile("Realtime deployment", "GlobalStandard · REALTIME_DEPLOYMENT_CAPACITY units (1 = 10K TPM + 20 RPM)", 130, 300, 530, 70, AI, "openai")
     p.tile("Project 'voice-agents'", "holds the Foundry voice agent (preview)", 130, 390, 530, 70, WARN, "foundry", WARN_FILL, True)
-    p.tile("Azure AI Search", "Basic · semantic ranker · key auth off", 100, 490, 560, 70, AI, "search")
+    p.tile("Azure AI Search", "Basic · semantic ranker · key auth off · synthetic 'knowledge' index (40 articles)", 100, 490, 560, 70, AI, "search")
     p.tile("Communication Services", "global · phone numbers bought in portal", 100, 590, 560, 70, BLUE, "acs")
 
     ys = [150, 410, 670]
@@ -287,20 +294,23 @@ def page_deployment() -> Page:
     hooks = ["", "preprovision: check-realtime-quota.ps1", "postprovision: create-voice-agent.py"]
     for (name, color, dashed), y, hook in zip(apps, ys, hooks):
         p.group(f"{name} · rg-<env> · AZURE_APP_LOCATION", 760, y, 960, 240, color, WARN_FILL if dashed else "none", True)
-        p.tile("Container App", "one replica · /ws /telephony/*", 790, y + 50, 280, 70, BLUE, "aca")
+        p.tile("Container App", "one replica · /ws · /telephony/acs|twilio|asterisk", 790, y + 50, 280, 70, BLUE, "aca")
         p.tile("Container Registry", "remote build", 1090, y + 50, 280, 70, BLUE, "acr")
         p.tile("Log Analytics", "console logs", 1390, y + 50, 300, 70, BLUE, "log")
         p.tile("Managed identity", "Foundry role · Search reader · ACS contributor", 790, y + 140, 280, 70, BLUE, "mi")
         if hook:
             p.note(f"<b>azd hook</b><br>{hook}", 1090, y + 140, 600, 70, color, "#ffffff")
-    p.note("<b>Order</b>: 1 platform azd provision → 2 scripts/load-knowledge-index.py → 3 buy ACS number → "
-           "4 scripts/use-shared-platform.ps1 -Example &lt;x&gt; [-AppLocation eastus2] → 5 azd up per example → 6 scripts/configure-telephony.ps1",
-           70, 740, 620, 80, GREY, "#F3F2F1", "middle")
+    p.note("<b>Order</b>: 1 platform azd provision → 2 load-knowledge-index.py → 3 buy ACS number → "
+           "4 use-shared-platform.ps1 -Example &lt;x&gt; [-AppLocation eastus2] [-Telephony acs,twilio,asterisk] → 5 azd up per example → "
+           "6 configure-telephony.ps1 (ACS/Twilio) or Asterisk websocket_client.conf.<br>"
+           "<b>Standalone instead</b>: each example has its own Foundry resource + 'voice-agents' project; "
+           "knowledge/ (rg-&lt;kb-env&gt;) supplies AI Search via use-knowledge-base.ps1.",
+           70, 740, 620, 90, GREY, "#F3F2F1", "middle")
     p.note("<b>Roles granted to each app identity</b> (shared-access.bicep)<br>"
            "• Foundry: Cognitive Services User + Foundry User (Voice Live, voice agent) or Cognitive Services OpenAI User (Realtime)<br>"
            "• Azure AI Search: Search Index Data Reader · ACS: Contributor (Call Automation)<br>"
            "• Deploying user: Foundry/OpenAI roles + Search contributor roles (agent creation, index load)",
-           70, 840, 620, 90, AI, "#F4EFFA", "middle")
+           70, 845, 620, 90, AI, "#F4EFFA", "middle")
     return p
 
 

@@ -4,6 +4,90 @@ Change history for the reusable demo pattern. Entries are newest-first.
 
 ---
 
+## [1.4.2] - 2026-09-29
+
+### Added
+
+- `scripts\enable-telephony.ps1`: turns on `acs`/`twilio`/`asterisk` for any example (standalone or shared), generates the secrets each channel needs (32 random bytes, URL-safe) into the azd env only, supports `-RotateSecrets` and `-Disable`, and with `-WriteAsteriskConfig` writes ready-to-copy `websocket_client.conf` + `extensions.conf` (real app URL and password) under `.azure\<env>\asterisk\`. Tested on a live azd env: secrets kept when present, generated config matched the env.
+- Deployment docs cover every option: 03 "Optional add-ons" (knowledge base, Asterisk, Twilio, ACS, app region) with a full Asterisk walkthrough, what each extra setting is, how it is generated (script, PowerShell, Python, OpenSSL), rotation, and validation; 00 Part D2; 02 prerequisites for phone channels (Asterisk versions/modules/network); 03b manual `az containerapp secret set` + `secretref:` steps; 04 Asterisk test; 05 Asterisk troubleshooting; 09 secret-generation reference; example READMEs.
+
+### Fixed
+
+- 03-deployment: validation sub-headings for phases 5-8 were labelled one phase behind.
+
+---
+
+## [1.4.1] - 2026-09-29
+
+### Added
+
+- `scripts\probe-asterisk.py`: simulates an Asterisk `chan_websocket` call against a deployed app (verified against a local uvicorn server: correct secret → `media` subprotocol, `START_MEDIA_BUFFERING`, agent audio; wrong secret → HTTP 403).
+- Asterisk endpoint enabled in the Voice Live and voice agent azd environments (`TELEPHONY_PROVIDERS=asterisk` + generated secrets) for the next `azd up`.
+
+### Changed
+
+- FreePBX references replaced with plain Asterisk configuration; doc 07 explains why a PJSIP `transport=wss` trunk (SIP over WebSocket + separate RTP) does not work against the app.
+- Generated media reviewed and refreshed: diagram pages 2-4 (Asterisk channel, knowledge base index, standalone knowledge project, telephony options), HTML one-pager (fixed an unescaped `<=` that blanked the Voice Live capacity cell; capacity units; voice-agent project route; Asterisk; bridge sizes; Foundry projects), PDF regenerated from the HTML.
+
+---
+
+## [1.4.0] - 2026-09-29
+
+### Added
+
+- **Asterisk over WSS (`chan_websocket`).** New telephony provider `asterisk` with endpoint `wss://<app>/telephony/asterisk/media`. Asterisk dials `WebSocket/<client>/c(slin24)f(json)` and connects out to the app; auth is HTTP Basic (`websocket_client.conf` password) or `?secret=`, checked against the new `ASTERISK_WEBSOCKET_SECRET` (Container Apps secret in all three examples). `slin24` needs no resampling (`ulaw`/`slin` converted); JSON and plain-text control messages; agent speech wrapped in `START_MEDIA_BUFFERING`/`STOP_MEDIA_BUFFERING`; barge-in `FLUSH_MEDIA`; busy → `HANGUP` so the dialplan can route to a queue; the requested WebSocket subprotocol is echoed. Protocol per the Asterisk WebSocket channel driver docs.
+- Doc 07 section 7 (`websocket_client.conf` and dialplan examples, and why a PJSIP `wss` transport doesn't work), env var docs, `use-shared-platform.ps1 -Telephony asterisk`, diagram update, and 7 adapter tests (98 tests).
+
+---
+
+## [1.3.0] - 2026-09-29
+
+### Added
+
+- **Synthetic knowledge base.** `config\knowledge-base.json` grows from 5 to 40 fictional service-desk articles in 8 categories (fields `category`, `last_reviewed` added; each ≤ 600 characters so it is spoken whole). `config\sample-data.json` grows to 30 request records (`SR-1001`–`SR-1030`) from the deterministic `scripts\generate-synthetic-data.py`; `SR-1001`–`SR-1005` and `kb-001`–`kb-005` are unchanged.
+- **`knowledge\` azd project**: Azure AI Search (Basic, semantic ranker free plan, key auth disabled) plus a `postprovision` hook that loads the `knowledge` index. `scripts\use-knowledge-base.ps1` points any standalone example at it (its app identity gets Search Index Data Reader through the existing `shared-access` module).
+- `scripts\load-knowledge-index.py`: `category`/`last_reviewed` fields, category as semantic keywords, `--recreate`, and retries on 401/403 while role assignments propagate.
+- `docs\10-knowledge-base.md`; tests for corpus shape, generator determinism, index schema, and the knowledge project (91 tests).
+
+### Verified live (2026-09-29)
+
+- `kbdemo`: search service created, 40 documents indexed, semantic query "I lost my phone and cannot sign in" → `kb/mfa-lost-phone` first.
+- `vldemo` (Voice Live) and `fademo` (voice agent) re-provisioned against it: `/api/info` reports `azure-ai-search:knowledge`; a live question about a lost authenticator phone produced a `search_knowledge_base` call answered from `kb/mfa-lost-phone` and a grounded spoken answer on both.
+
+### Fixed
+
+- `use-knowledge-base.ps1`: a `$example` variable collided with the `$Example` parameter (PowerShell names are case-insensitive).
+
+---
+
+## [1.2.5] - 2026-09-29
+
+### Changed
+
+- **Voice Live example uses a Foundry project too**, so all three examples look the same in the Foundry portal: `allowProjectManagement` + system identity on the Foundry resource and a `voice-agents` project (`VOICE_LIVE_PROJECT_NAME`); still no model deployment. New outputs `FOUNDRY_PROJECT_NAME` / `FOUNDRY_PROJECT_ENDPOINT`.
+
+### Verified live (2026-09-29, vldemo)
+
+- Existing Foundry resource upgraded in place, project `voice-agents` created, app healthy, 1-session probe OK on `gpt-realtime-2.1-mini` (p50 TTFA 795 ms).
+
+---
+
+## [1.2.4] - 2026-09-29
+
+### Changed
+
+- **Realtime example uses a Foundry project**, like the voice agent: the Foundry resource now has `allowProjectManagement` + system identity and a `voice-agents` project (`REALTIME_PROJECT_NAME`); the `gpt-realtime-2.1-mini` deployment is shared with that project and appears in it in the Foundry portal. The deploying user also gets Foundry User. The app's `/openai/v1/realtime` connection is unchanged. New outputs `FOUNDRY_PROJECT_NAME` / `FOUNDRY_PROJECT_ENDPOINT`.
+
+### Fixed
+
+- Project creation raced the model deployment on the same account (`RequestConflict: Another operation is in progress`); the project now `dependsOn` the deployment in both the Realtime example and `platform\`.
+
+### Verified live (2026-09-29, rtdemo)
+
+- Existing account upgraded in place (no data loss), project `voice-agents` created, deployment unchanged (10 units = 100K TPM / 200 RPM, auto-upgrade policy preserved via `REALTIME_VERSION_UPGRADE_OPTION`), deployment listed by the project's `/deployments` API, app healthy, 1-session probe OK (p50 TTFA 878 ms).
+
+---
+
 ## [1.2.3] - 2026-09-29
 
 ### Fixed

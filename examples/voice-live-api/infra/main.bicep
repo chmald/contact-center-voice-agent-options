@@ -37,6 +37,9 @@ param voiceLiveModel string = 'gpt-realtime-mini'
 
 param voiceLiveVoice string = 'en-US-Ava:DragonHDLatestNeural'
 
+@description('Foundry project (standalone mode) on the Voice Live example resource.')
+param voiceLiveProjectName string = 'voice-agents'
+
 param maxConcurrentSessions int = 20
 
 param webExists bool = false
@@ -55,6 +58,8 @@ param telephonyWebhookSecret string = ''
 param acsEventGridSecret string = ''
 @secure()
 param twilioAuthToken string = ''
+@secure()
+param asteriskWebsocketSecret string = ''
 param telephonyOverflowNumber string = ''
 
 var tags = {
@@ -78,6 +83,7 @@ module resources 'modules/resources.bicep' = {
     principalType: principalType
     voiceLiveModel: voiceLiveModel
     voiceLiveVoice: voiceLiveVoice
+    voiceLiveProjectName: voiceLiveProjectName
     maxConcurrentSessions: maxConcurrentSessions
     webExists: webExists
     tags: tags
@@ -91,6 +97,7 @@ module resources 'modules/resources.bicep' = {
     telephonyWebhookSecret: telephonyWebhookSecret
     acsEventGridSecret: acsEventGridSecret
     twilioAuthToken: twilioAuthToken
+    asteriskWebsocketSecret: asteriskWebsocketSecret
     telephonyOverflowNumber: telephonyOverflowNumber
   }
 }
@@ -108,5 +115,7 @@ output VOICE_LIVE_MODEL string = voiceLiveModel
 output VOICE_LIVE_VOICE string = voiceLiveVoice
 output VOICE_LIVE_API_VERSION string = '2026-07-15'
 output FOUNDRY_RESOURCE_NAME string = resources.outputs.FOUNDRY_RESOURCE_NAME
+output FOUNDRY_PROJECT_NAME string = resources.outputs.FOUNDRY_PROJECT_NAME
+output FOUNDRY_PROJECT_ENDPOINT string = resources.outputs.FOUNDRY_PROJECT_ENDPOINT
 output PUBLIC_BASE_URL string = resources.outputs.PUBLIC_BASE_URL
 output TELEPHONY_PROVIDERS string = telephonyProviders

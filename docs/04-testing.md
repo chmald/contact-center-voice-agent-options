@@ -287,6 +287,8 @@ Foundry voice-agent observability to check:
 
 ## Phone-channel and RAG tests
 
+**Asterisk channel:** `python scripts\probe-asterisk.py --url wss://<app-fqdn>/telephony/asterisk/media` (simulates `chan_websocket`: Basic auth, `media` subprotocol, JSON `MEDIA_START`, slin24). Pass criteria: agent audio returned; wrong secret → HTTP 403. Then place a real call to the Asterisk extension and repeat the RAG and barge-in checks.
+
 When the shared platform and telephony are enabled, run the phone test plan in
 [07 — Telephony and the shared AI endpoint](07-telephony-and-shared-endpoint.md#test-plan): RAG on
 browser and phone, phone barge-in, shared admission control, and a repeat of the concurrency sweep

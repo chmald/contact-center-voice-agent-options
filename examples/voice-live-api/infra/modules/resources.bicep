@@ -17,6 +17,8 @@ param principalType string
 param voiceLiveModel string
 
 param voiceLiveVoice string
+@description('Foundry project created in standalone mode, matching the Realtime and voice agent examples.')
+param voiceLiveProjectName string = 'voice-agents'
 param maxConcurrentSessions int
 param webExists bool
 param tags object
@@ -37,6 +39,9 @@ param telephonyWebhookSecret string = ''
 param acsEventGridSecret string = ''
 @secure()
 param twilioAuthToken string = ''
+@secure()
+@description('Password Asterisk sends (websocket_client.conf) to /telephony/asterisk/media.')
+param asteriskWebsocketSecret string = ''
 param telephonyOverflowNumber string = ''
 
 var suffix = uniqueString(subscription().id, environmentName, location)
@@ -118,10 +123,29 @@ resource foundry 'Microsoft.CognitiveServices/accounts@2025-06-01' = if (!useSha
   sku: {
     name: 'S0'
   }
+  // Foundry resource with project management + a project, so all three examples look the same in the Foundry portal.
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     customSubDomainName: foundryName
     disableLocalAuth: true
     publicNetworkAccess: 'Enabled'
+    allowProjectManagement: true
+  }
+}
+
+resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = if (!useSharedFoundry) {
+  parent: foundry
+  name: voiceLiveProjectName
+  location: location
+  tags: tags
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    displayName: voiceLiveProjectName
+    description: 'Voice comparison demo: project for the Voice Live example.'
   }
 }
 
@@ -263,6 +287,11 @@ var telephonyEnv = empty(telephonyProviders) ? [] : concat([
     name: 'TWILIO_AUTH_TOKEN'
     secretRef: 'twilio-auth-token'
   }
+], empty(asteriskWebsocketSecret) ? [] : [
+  {
+    name: 'ASTERISK_WEBSOCKET_SECRET'
+    secretRef: 'asterisk-websocket-secret'
+  }
 ])
 var appSecrets = concat(useAcs && !empty(acsEventGridSecret) ? [
   {
@@ -278,6 +307,11 @@ var appSecrets = concat(useAcs && !empty(acsEventGridSecret) ? [
   {
     name: 'twilio-auth-token'
     value: twilioAuthToken
+  }
+], empty(asteriskWebsocketSecret) ? [] : [
+  {
+    name: 'asterisk-websocket-secret'
+    value: asteriskWebsocketSecret
   }
 ])
 
@@ -373,4 +407,6 @@ output SERVICE_WEB_NAME string = web.name
 output SERVICE_WEB_URI string = 'https://${web.properties.configuration.ingress.fqdn}'
 output VOICE_LIVE_ENDPOINT string = voiceLiveEndpoint
 output FOUNDRY_RESOURCE_NAME string = useSharedFoundry ? sharedFoundryName : foundryName
+output FOUNDRY_PROJECT_NAME string = useSharedFoundry ? '' : voiceLiveProjectName
+output FOUNDRY_PROJECT_ENDPOINT string = useSharedFoundry ? '' : 'https://${foundrySubDomain}.services.ai.azure.com/api/projects/${voiceLiveProjectName}'
 output PUBLIC_BASE_URL string = publicBaseUrl

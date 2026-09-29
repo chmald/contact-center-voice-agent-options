@@ -18,6 +18,7 @@ LOGGER = logging.getLogger("voiceagent.telephony")
 SendAudio = Callable[[str], Awaitable[None]]
 Flush = Callable[[], Awaitable[None]]
 Inbound = Callable[[RealtimeStyleBridge], Awaitable[None]]
+TurnEnd = Callable[[], Awaitable[None]]
 
 
 def public_base_url(connection: HTTPConnection, settings: TelephonySettings) -> str:
@@ -53,6 +54,7 @@ async def run_phone_session(
     send_audio: SendAudio,
     flush: Flush,
     inbound: Inbound,
+    on_turn_end: TurnEnd | None = None,
 ) -> None:
     """Connect a bridge for an already-admitted phone call and pump audio both ways.
 
@@ -70,6 +72,9 @@ async def run_phone_session(
                 await send_audio(audio)
         elif kind in {"speech_started", "interrupted"}:
             await flush()
+        elif kind == "metrics" and on_turn_end is not None:
+            # A response finished; lets adapters close out buffered playback (e.g. Asterisk).
+            await on_turn_end()
         elif kind == "tool_call":
             LOGGER.info(json.dumps({"event": "phone_tool_call", "channel": channel, "call_id": call_id, "tool": message.get("name")}))
         elif kind == "error":

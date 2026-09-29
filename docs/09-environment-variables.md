@@ -48,6 +48,7 @@ Written by `scripts\use-shared-platform.ps1` from the `platform\` outputs. Empty
 |---|---|---|---|
 | `VOICE_LIVE_MODEL` | deploy + runtime | `gpt-realtime-mini` | Managed model (`gpt-realtime-mini`, `gpt-realtime-2.1-mini`). No deployment. |
 | `VOICE_LIVE_VOICE` | deploy + runtime | `en-US-Ava:DragonHDLatestNeural` | Azure neural or OpenAI voice. |
+| `VOICE_LIVE_PROJECT_NAME` | deploy (standalone) | `voice-agents` | Foundry project on the Voice Live example's resource (same portal experience as the other two examples). |
 | `VOICE_LIVE_ENDPOINT` | runtime | Bicep | `https://<foundry>.services.ai.azure.com` |
 | `VOICE_LIVE_API_VERSION` | runtime | `2026-07-15` | Voice Live API version. |
 | `VOICE_LIVE_TURN_DETECTION` | runtime | `azure_semantic_vad` | Also `azure_semantic_vad_multilingual`, `server_vad`. |
@@ -65,6 +66,7 @@ Written by `scripts\use-shared-platform.ps1` from the `platform\` outputs. Empty
 | **`REALTIME_DEPLOYMENT_CAPACITY`** | deploy (example + platform) | `10` | Global Standard capacity units (`gpt-realtime-2.1-mini`: 10K TPM + 20 RPM each; 10 = 100K TPM / 200 RPM). Checked by the `preprovision` hook. |
 | `REALTIME_VERSION_UPGRADE_OPTION` | deploy | `OnceCurrentVersionExpired` | Deployment auto-upgrade policy. |
 | `REALTIME_VOICE` | deploy + runtime | `marin` | One of the 10 OpenAI voices. |
+| `REALTIME_PROJECT_NAME` | deploy (standalone) | `voice-agents` | Foundry project on the Realtime example's resource; the deployment is visible and testable from it in the Foundry portal (same experience as the voice agent). |
 | `AZURE_OPENAI_ENDPOINT` | runtime | Bicep | `https://<foundry>.openai.azure.com` |
 | `REALTIME_TURN_DETECTION` | runtime | `semantic_vad` | Or `server_vad`. |
 | `REALTIME_NOISE_REDUCTION` | runtime | `near_field` | `far_field`, `none`. |
@@ -104,27 +106,48 @@ Written by `scripts\use-shared-platform.ps1` from the `platform\` outputs. Empty
 
 | Variable | Scope | Default | Purpose |
 |---|---|---|---|
-| `AZURE_SEARCH_SERVICE_NAME` | deploy | empty | Search service in the platform RG; empty = local `config\knowledge-base.json`. |
+| `AZURE_SEARCH_SERVICE_NAME` | deploy | empty | Search service in `SHARED_RESOURCE_GROUP` (the `knowledge\` project or the platform); empty = local `config\knowledge-base.json`. Set by `scripts\use-knowledge-base.ps1`. |
+| `KNOWLEDGE_RESOURCE_GROUP` | output (knowledge) | `rg-<kb-env>` | Resource group of the `knowledge\` project; copied to an example's `SHARED_RESOURCE_GROUP`. |
+| `AZURE_SEARCH_SKU` | deploy (knowledge) | `basic` | Search tier for the `knowledge\` project. |
 | `AZURE_SEARCH_ENDPOINT` | runtime | Bicep | Set → Azure AI Search backend with managed identity. |
 | `AZURE_SEARCH_INDEX` | deploy + runtime | `knowledge` | Index name. |
 | `AZURE_SEARCH_SEMANTIC_CONFIG` | deploy + runtime | `default` | Semantic ranker configuration. |
 | `AZURE_SEARCH_API_VERSION` | runtime | `2024-07-01` | Search REST API version. |
 | `AZURE_SEARCH_API_KEY` | local only | empty | Deployed search has key auth disabled. |
 
-## Telephony (ACS and Twilio)
+## Telephony (ACS, Twilio, and Asterisk)
 
 | Variable | Scope | Default | Purpose |
 |---|---|---|---|
-| `TELEPHONY_PROVIDERS` | deploy + runtime | empty | `acs`, `twilio`, or `acs,twilio`. Empty = browser only. |
+| `TELEPHONY_PROVIDERS` | deploy + runtime | empty | Any of `acs`, `twilio`, `asterisk` (comma-separated). Empty = browser only. |
 | `ACS_RESOURCE_NAME` | deploy | empty | ACS resource in the platform RG. |
 | `ACS_ENDPOINT` | runtime | Bicep | ACS endpoint for Call Automation (managed identity). |
 | `ACS_CONNECTION_STRING` | local only | empty | Alternative to `ACS_ENDPOINT` for local tests. |
 | `TELEPHONY_WEBHOOK_SECRET` | deploy + runtime (secret) | generated | Signs per-call tokens; never leaves the app. |
 | `ACS_EVENTGRID_SECRET` | deploy + runtime (secret) | generated | Placed in the Event Grid endpoint URL; must differ from the signing key. |
 | `TWILIO_AUTH_TOKEN` | deploy + runtime (secret) | empty | Validates `X-Twilio-Signature`. |
+| `ASTERISK_WEBSOCKET_SECRET` | deploy + runtime (secret) | empty | Password Asterisk sends to `/telephony/asterisk/media` (HTTP Basic, or `?secret=`); required when `TELEPHONY_PROVIDERS` includes `asterisk`. |
 | `TWILIO_SKIP_SIGNATURE_VALIDATION` | local only | `false` | Local tunnels only. |
 | `TELEPHONY_OVERFLOW_NUMBER` | deploy + runtime | empty | E.164 human-queue number for callers over the cap. |
 | `TELEPHONY_BUSY_MESSAGE` | runtime | built-in | Spoken to busy Twilio callers. |
 | `PUBLIC_BASE_URL` | runtime | Bicep | Public https base for callbacks (set from the Container Apps domain). |
 | `TELEPHONY_TOKEN_TTL_SECONDS` | runtime | `300` | Media/stream token lifetime. |
 | `TELEPHONY_CALLBACK_TTL_SECONDS` | runtime | `14400` | ACS callback token lifetime (max call length). |
+
+### Generating the telephony secrets
+
+`scripts\enable-telephony.ps1 -Example <x> -Providers <acs|twilio|asterisk>` creates every secret the chosen
+channels need (32 random bytes, URL-safe base64) and stores it in the example's azd env; `azd up` turns them
+into Container Apps secrets. Existing values are kept unless you pass `-RotateSecrets`.
+
+| Channel | Settings required | Generated? |
+|---|---|---|
+| any | `TELEPHONY_PROVIDERS`, `TELEPHONY_WEBHOOK_SECRET` | yes |
+| `asterisk` | `ASTERISK_WEBSOCKET_SECRET` (copy into Asterisk `websocket_client.conf` as `password`; `-WriteAsteriskConfig` writes the file for you) | yes |
+| `acs` | `ACS_EVENTGRID_SECRET`, `ACS_RESOURCE_NAME`, `SHARED_RESOURCE_GROUP` | secret yes; ACS comes from `platform\` |
+| `twilio` | `TWILIO_AUTH_TOKEN` | no — from the Twilio Console |
+
+Manual alternatives: PowerShell `[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).TrimEnd('=').Replace('+','-').Replace('/','_')`,
+`python -c "import secrets; print(secrets.token_urlsafe(32))"`, or `openssl rand -base64 32 | tr '+/' '-_' | tr -d '='`.
+Minimum length is 16 characters; avoid `;` in Asterisk `.conf` values (it starts a comment).
+

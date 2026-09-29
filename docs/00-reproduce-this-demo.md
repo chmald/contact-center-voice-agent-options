@@ -171,6 +171,28 @@ azd env get-values
 
 ---
 
+## Part D2 — Optional: knowledge base and phone channels
+
+Skip this part for a browser-only demo. Details and every setting: [03 — Optional add-ons](03-deployment.md#optional-add-ons-knowledge-base-and-phone-channels).
+
+```powershell
+# Knowledge base (Azure AI Search + 40 synthetic articles), then point an example at it
+cd knowledge; azd up; cd ..
+./scripts/use-knowledge-base.ps1 -Example foundry-voice-agent -KnowledgeEnv <kb-env>
+
+# Asterisk over WSS: generate TELEPHONY_WEBHOOK_SECRET + ASTERISK_WEBSOCKET_SECRET, deploy, write Asterisk config
+./scripts/enable-telephony.ps1 -Example foundry-voice-agent -Providers asterisk
+cd examples\foundry-voice-agent; azd up; cd ..\..
+./scripts/enable-telephony.ps1 -Example foundry-voice-agent -WriteAsteriskConfig
+```
+
+Checkpoint:
+
+- [ ] `/api/info` shows `knowledge: azure-ai-search:knowledge` (if the knowledge base was added).
+- [ ] `/api/info` shows `telephony: ["asterisk"]` and `scripts\probe-asterisk.py` gets agent audio back.
+
+---
+
 ## Part E — Smoke test all three apps
 
 Run these checks against each `SERVICE_WEB_URI`: Voice Live, Realtime API, and Foundry voice agent.
@@ -289,6 +311,7 @@ azd down --purge
 | B | Deploy Voice Live example. | [ ] |
 | C | Check Realtime quota and deploy Realtime example. | [ ] |
 | D | Deploy Foundry voice agent preview and create the agent version through postprovision. | [ ] |
+| D2 | Optional: knowledge base (`knowledge\`) and phone channels (`enable-telephony.ps1`, e.g. Asterisk). | [ ] |
 | E | Smoke test browser, text turn, and tool turn on all three. | [ ] |
 | F | Run 1, 4, 10, and 20 session load probes on all three. | [ ] |
 | G | Repeat with the same model when quota and region support allow it. | [ ] |

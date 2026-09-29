@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -25,6 +26,7 @@ from azure.identity import DefaultAzureCredential
 ROOT = Path(__file__).resolve().parents[1]
 API_VERSION = "2024-07-01"
 SCOPE = "https://search.azure.com/.default"
+RBAC_WAIT_SECONDS = 300
 
 
 def index_definition(name: str, semantic_config: str) -> dict:
@@ -35,6 +37,8 @@ def index_definition(name: str, semantic_config: str) -> dict:
             {"name": "title", "type": "Edm.String", "searchable": True},
             {"name": "content", "type": "Edm.String", "searchable": True},
             {"name": "source", "type": "Edm.String", "filterable": True},
+            {"name": "category", "type": "Edm.String", "searchable": True, "filterable": True, "facetable": True},
+            {"name": "last_reviewed", "type": "Edm.String", "filterable": True, "sortable": True},
         ],
         "semantic": {
             "configurations": [
@@ -43,6 +47,7 @@ def index_definition(name: str, semantic_config: str) -> dict:
                     "prioritizedFields": {
                         "titleField": {"fieldName": "title"},
                         "prioritizedContentFields": [{"fieldName": "content"}],
+                        "prioritizedKeywordsFields": [{"fieldName": "category"}],
                     },
                 }
             ]
@@ -50,20 +55,29 @@ def index_definition(name: str, semantic_config: str) -> dict:
     }
 
 
-def _request(method: str, url: str, token: str, body: dict) -> dict:
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode("utf-8"),
-        method=method,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            raw = response.read()
-            return json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:500]
-        raise SystemExit(f"{method} {url} failed: HTTP {exc.code} {detail}") from exc
+def _request(method: str, url: str, token: str, body: dict | None, allow_404: bool = False) -> dict:
+    """Send a data-plane request, retrying 401/403 while a new role assignment propagates."""
+
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    deadline = time.monotonic() + RBAC_WAIT_SECONDS
+    while True:
+        request = urllib.request.Request(
+            url, data=data, method=method,
+            headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                raw = response.read()
+                return json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404 and allow_404:
+                return {}
+            if exc.code in (401, 403) and time.monotonic() < deadline:
+                print(f"{method} returned HTTP {exc.code}; waiting for the Search role assignment to propagate...")
+                time.sleep(15)
+                continue
+            detail = exc.read().decode("utf-8", errors="replace")[:500]
+            raise SystemExit(f"{method} {url} failed: HTTP {exc.code} {detail}") from exc
 
 
 def main() -> int:
@@ -73,6 +87,7 @@ def main() -> int:
     parser.add_argument("--semantic-config", default="default")
     parser.add_argument("--file", default=str(ROOT / "config" / "knowledge-base.json"))
     parser.add_argument("--collection", default="documents")
+    parser.add_argument("--recreate", action="store_true", help="Delete the index first so removed documents disappear")
     args = parser.parse_args()
 
     documents = json.loads(Path(args.file).read_text(encoding="utf-8"))
@@ -84,6 +99,8 @@ def main() -> int:
     endpoint = args.endpoint.rstrip("/")
     token = DefaultAzureCredential(exclude_interactive_browser_credential=False).get_token(SCOPE).token
 
+    if args.recreate:
+        _request("DELETE", f"{endpoint}/indexes/{args.index}?api-version={API_VERSION}", token, None, allow_404=True)
     _request(
         "PUT",
         f"{endpoint}/indexes/{args.index}?api-version={API_VERSION}",
@@ -97,6 +114,8 @@ def main() -> int:
             "title": str(doc.get("title", "")),
             "content": str(doc.get("content", "")),
             "source": str(doc.get("source", "")),
+            "category": str(doc.get("category", "")),
+            "last_reviewed": str(doc.get("last_reviewed", "")),
         }
         for doc in documents
         if isinstance(doc, dict) and doc.get("id")

@@ -333,6 +333,34 @@ curl.exe "$ServiceWebUri/api/info"
 
 ---
 
+## Optional — Enable phone channels by hand
+
+Equivalent of `scripts\enable-telephony.ps1` for a Container App created manually. Generate each secret
+(32 random bytes, URL-safe):
+
+```powershell
+function New-Secret { [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).TrimEnd('=').Replace('+','-').Replace('/','_') }
+$webhookSecret  = New-Secret
+$asteriskSecret = New-Secret
+```
+
+Store them as Container Apps secrets and reference them from env vars (never as plain env values):
+
+```powershell
+az containerapp secret set -n $AppName -g $ResourceGroup --subscription $SubscriptionId `
+  --secrets telephony-webhook-secret=$webhookSecret asterisk-websocket-secret=$asteriskSecret
+az containerapp update -n $AppName -g $ResourceGroup --subscription $SubscriptionId `
+  --set-env-vars TELEPHONY_PROVIDERS=asterisk `
+    TELEPHONY_WEBHOOK_SECRET=secretref:telephony-webhook-secret `
+    ASTERISK_WEBSOCKET_SECRET=secretref:asterisk-websocket-secret `
+    PUBLIC_BASE_URL=https://$(az containerapp show -n $AppName -g $ResourceGroup --subscription $SubscriptionId --query properties.configuration.ingress.fqdn -o tsv)
+```
+
+Put `$asteriskSecret` in Asterisk's `websocket_client.conf` as `password` (see
+[07 §7](07-telephony-and-shared-endpoint.md#7-connect-asterisk-directly-over-wss-no-twilio)).
+For Twilio add `twilio-auth-token=<token>` / `TWILIO_AUTH_TOKEN=secretref:twilio-auth-token`; for ACS add
+`acs-eventgrid-secret=$(New-Secret)` / `ACS_EVENTGRID_SECRET=secretref:acs-eventgrid-secret` plus `ACS_ENDPOINT`.
+
 ## Phase 6 — Populate local deployment files by hand
 
 The manual path does not create `.azure\<env>\.env`. Create `examples\<ex>\.env.local` yourself.

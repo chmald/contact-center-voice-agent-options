@@ -31,3 +31,7 @@ def mount_telephony(
         from .twilio import build_twilio_router
 
         app.include_router(build_twilio_router(hub, settings))
+    if "asterisk" in settings.providers:
+        from .asterisk import build_asterisk_router
+
+        app.include_router(build_asterisk_router(hub, settings))

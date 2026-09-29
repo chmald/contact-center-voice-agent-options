@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from ..sessions import BUSY_MESSAGE
 
-SUPPORTED_PROVIDERS = frozenset({"acs", "twilio"})
+SUPPORTED_PROVIDERS = frozenset({"acs", "twilio", "asterisk"})
 E164_RE = re.compile(r"^\+[1-9]\d{6,14}$")
 MIN_SECRET_LENGTH = 16
 
@@ -21,7 +21,7 @@ def _truthy(value: str | None) -> bool:
 class TelephonySettings:
     """Which phone channels are enabled and how they authenticate.
 
-    ``TELEPHONY_PROVIDERS`` is a comma list of ``acs`` and/or ``twilio``; empty
+    ``TELEPHONY_PROVIDERS`` is a comma list of ``acs``, ``twilio``, and/or ``asterisk``; empty
     (the default) mounts no telephony routes, so the browser-only demo is unchanged.
     ``TELEPHONY_WEBHOOK_SECRET`` signs per-call tokens and never leaves the app;
     ``ACS_EVENTGRID_SECRET`` is the separate value placed in the Event Grid endpoint URL.
@@ -37,6 +37,7 @@ class TelephonySettings:
     acs_connection_string: str | None = None
     twilio_auth_token: str | None = None
     twilio_skip_signature_validation: bool = False
+    asterisk_websocket_secret: str = ""
     overflow_number: str | None = None
     busy_message: str = BUSY_MESSAGE
     token_ttl_seconds: int = 300
@@ -71,6 +72,11 @@ class TelephonySettings:
                 "Twilio telephony needs TWILIO_AUTH_TOKEN to validate X-Twilio-Signature "
                 "(TWILIO_SKIP_SIGNATURE_VALIDATION=true is for local tunnels only)"
             )
+        if "asterisk" in self.providers and len(self.asterisk_websocket_secret) < MIN_SECRET_LENGTH:
+            raise ValueError(
+                f"ASTERISK_WEBSOCKET_SECRET must be at least {MIN_SECRET_LENGTH} characters "
+                "(use it as the password in Asterisk websocket_client.conf)"
+            )
         if self.overflow_number and not E164_RE.match(self.overflow_number):
             raise ValueError("TELEPHONY_OVERFLOW_NUMBER must be an E.164 number such as +15555550100")
         if self.public_base_url and not self.public_base_url.startswith(("https://", "http://")):
@@ -101,6 +107,7 @@ class TelephonySettings:
             acs_connection_string=os.getenv("ACS_CONNECTION_STRING") or None,
             twilio_auth_token=os.getenv("TWILIO_AUTH_TOKEN") or None,
             twilio_skip_signature_validation=_truthy(os.getenv("TWILIO_SKIP_SIGNATURE_VALIDATION")),
+            asterisk_websocket_secret=(os.getenv("ASTERISK_WEBSOCKET_SECRET") or "").strip(),
             overflow_number=(os.getenv("TELEPHONY_OVERFLOW_NUMBER") or "").strip() or None,
             busy_message=(os.getenv("TELEPHONY_BUSY_MESSAGE") or BUSY_MESSAGE).strip(),
             token_ttl_seconds=max(30, ttl),

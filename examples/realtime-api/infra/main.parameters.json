@@ -32,6 +32,9 @@
     "versionUpgradeOption": {
       "value": "${REALTIME_VERSION_UPGRADE_OPTION=OnceCurrentVersionExpired}"
     },
+    "realtimeProjectName": {
+      "value": "${REALTIME_PROJECT_NAME=voice-agents}"
+    },
     "realtimeVoice": {
       "value": "${REALTIME_VOICE=marin}"
     },
@@ -67,6 +70,9 @@
     },
     "acsEventGridSecret": {
       "value": "${ACS_EVENTGRID_SECRET=}"
+    },
+    "asteriskWebsocketSecret": {
+      "value": "${ASTERISK_WEBSOCKET_SECRET=}"
     },
     "twilioAuthToken": {
       "value": "${TWILIO_AUTH_TOKEN=}"

@@ -35,3 +35,4 @@ jobs:
             fi
             az bicep build --file platform/infra/main.bicep
             az bicep build --file examples/foundry-voice-agent/infra/main.bicep
+            az bicep build --file knowledge/infra/main.bicep

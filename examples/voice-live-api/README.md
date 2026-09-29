@@ -52,6 +52,21 @@ Allowed model values are `gpt-realtime-mini` and `gpt-realtime-2.1-mini`.
 azd down --purge
 ```
 
+## Foundry project
+
+The Foundry resource is created with project management enabled and a `voice-agents` project (`VOICE_LIVE_PROJECT_NAME`), matching the Realtime and voice agent examples so all three look the same in the Foundry portal. Voice Live still uses managed models, so the project holds no model deployment; the app keeps connecting to `/voice-live/realtime?model=…` on the resource.
+
+## Optional: knowledge base and phone channels
+
+Browser-only by default. To add the synthetic Azure AI Search knowledge base or phone channels (Asterisk over WSS, Twilio, ACS),
+see [03 — Optional add-ons](../../docs/03-deployment.md#optional-add-ons-knowledge-base-and-phone-channels). Asterisk in three commands:
+
+```powershell
+../../scripts/enable-telephony.ps1 -Example voice-live-api -Providers asterisk   # generates the secrets
+azd up
+../../scripts/enable-telephony.ps1 -Example voice-live-api -WriteAsteriskConfig  # writes .azure/<env>/asterisk/*.conf
+```
+
 ## Configuration
 
 | Setting | Default | Notes |

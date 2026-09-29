@@ -64,6 +64,8 @@ param telephonyWebhookSecret string = ''
 param acsEventGridSecret string = ''
 @secure()
 param twilioAuthToken string = ''
+@secure()
+param asteriskWebsocketSecret string = ''
 param telephonyOverflowNumber string = ''
 
 var tags = {
@@ -103,6 +105,7 @@ module resources 'modules/resources.bicep' = {
     telephonyWebhookSecret: telephonyWebhookSecret
     acsEventGridSecret: acsEventGridSecret
     twilioAuthToken: twilioAuthToken
+    asteriskWebsocketSecret: asteriskWebsocketSecret
     telephonyOverflowNumber: telephonyOverflowNumber
   }
 }

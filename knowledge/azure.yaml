@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+# Infra-only azd project: Azure AI Search + the synthetic knowledge index. `azd up` here, then
+# point each example at it with scripts/use-knowledge-base.ps1 (see docs/10-knowledge-base.md).
+name: voice-agent-knowledge-base
+metadata:
+  template: voice-live-vs-realtime-api-knowledge@1.3.0
+hooks:
+  postprovision:
+    shell: pwsh
+    run: hooks/postprovision.ps1
+    continueOnError: false
+    interactive: false

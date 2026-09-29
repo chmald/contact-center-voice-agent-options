@@ -9,7 +9,7 @@
     Microsoft.Communication.IncomingCall for -PhoneNumber to this app only. Give each app its
     own ACS number (or re-run with another -Example to move one number between apps).
   - Twilio: prints the Voice webhook URL to paste on a Twilio number or on a Twilio SIP Domain
-    (the route a PBX such as FreePBX uses to reach the agent over a SIP trunk).
+    (the route a PBX such as Asterisk uses to reach the agent over a SIP trunk).
 
   Verifies the active az account matches the example's azd tenant/subscription first and
   never proceeds on a mismatch.
@@ -92,7 +92,7 @@ if ($providers -contains "twilio") {
     Write-Host ""
     Write-Host "Twilio: set this as the Voice webhook (HTTP POST) on a Twilio number or Twilio SIP Domain:"
     Write-Host "  $baseUrl/telephony/twilio/voice"
-    Write-Host "FreePBX/Asterisk: add an outbound route (or custom destination) that sends the chosen"
+    Write-Host "Asterisk: add a dialplan extension (or IVR option) that sends the chosen"
     Write-Host "extension/IVR option over the Twilio trunk to sip:<agent>@<your-domain>.sip.twilio.com;"
     Write-Host "the SIP Domain above then hands the call to the agent. See docs/07-telephony-and-shared-endpoint.md."
 }

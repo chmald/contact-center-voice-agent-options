@@ -62,6 +62,17 @@ After editing `config\agent-profile.json`, re-run `azd hooks run postprovision` 
 
 All common settings (`AZURE_LOCATION`, `AZURE_APP_LOCATION`, `MAX_CONCURRENT_SESSIONS`, telephony, search) are in [docs\09-environment-variables.md](../../docs/09-environment-variables.md).
 
+## Optional: knowledge base and phone channels
+
+Browser-only by default. To add the synthetic Azure AI Search knowledge base or phone channels (Asterisk over WSS, Twilio, ACS),
+see [03 — Optional add-ons](../../docs/03-deployment.md#optional-add-ons-knowledge-base-and-phone-channels). Asterisk in three commands:
+
+```powershell
+../../scripts/enable-telephony.ps1 -Example foundry-voice-agent -Providers asterisk   # generates the secrets
+azd up
+../../scripts/enable-telephony.ps1 -Example foundry-voice-agent -WriteAsteriskConfig  # writes .azure/<env>/asterisk/*.conf
+```
+
 ## Tear down
 
 ```powershell

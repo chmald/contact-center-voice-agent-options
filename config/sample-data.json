@@ -1,4 +1,5 @@
 {
+  "_note": "SYNTHETIC request records for the record-lookup tool (fictional). Regenerate with scripts/generate-synthetic-data.py.",
   "records": [
     {
       "id": "SR-1001",
@@ -34,6 +35,256 @@
       "summary": "Support team is validating impact and next steps.",
       "last_updated": "2026-09-25",
       "owner_team": "Support Coordination"
+    },
+    {
+      "id": "SR-1006",
+      "status": "Waiting on requester",
+      "summary": "New laptop request is waiting for manager approval.",
+      "priority": "P4",
+      "opened": "2026-09-16",
+      "last_updated": "2026-09-21",
+      "owner_team": "Device Services",
+      "related_article": "kb/hardware-request"
+    },
+    {
+      "id": "SR-1007",
+      "status": "In progress",
+      "summary": "Replacement laptop has shipped and should arrive in two business days.",
+      "priority": "P3",
+      "opened": "2026-09-14",
+      "last_updated": "2026-09-17",
+      "owner_team": "Device Services",
+      "related_article": "kb/hardware-request"
+    },
+    {
+      "id": "SR-1008",
+      "status": "Waiting on requester",
+      "summary": "VPN certificate error is being investigated by the network team.",
+      "priority": "P2",
+      "opened": "2026-09-21",
+      "last_updated": "2026-09-24",
+      "owner_team": "Network Operations",
+      "related_article": "kb/vpn"
+    },
+    {
+      "id": "SR-1009",
+      "status": "Resolved",
+      "summary": "Remote desktop access was approved and is being configured.",
+      "priority": "P4",
+      "opened": "2026-09-26",
+      "last_updated": "2026-09-29",
+      "owner_team": "Network Operations",
+      "related_article": "kb/remote-desktop"
+    },
+    {
+      "id": "SR-1010",
+      "status": "Resolved",
+      "summary": "Shared mailbox access was granted; it may take two hours to appear.",
+      "priority": "P4",
+      "opened": "2026-09-28",
+      "last_updated": "2026-09-29",
+      "owner_team": "Collaboration Services",
+      "related_article": "kb/shared-mailbox"
+    },
+    {
+      "id": "SR-1011",
+      "status": "Scheduled",
+      "summary": "Software security review is in progress for the requested application.",
+      "priority": "P4",
+      "opened": "2026-09-12",
+      "last_updated": "2026-09-15",
+      "owner_team": "Application Security",
+      "related_article": "kb/software-install"
+    },
+    {
+      "id": "SR-1012",
+      "status": "Resolved",
+      "summary": "Software license was assigned and is ready to use.",
+      "priority": "P4",
+      "opened": "2026-09-14",
+      "last_updated": "2026-09-18",
+      "owner_team": "Software Asset Management",
+      "related_article": "kb/software-license"
+    },
+    {
+      "id": "SR-1013",
+      "status": "Resolved",
+      "summary": "Application crash was reproduced; a fix is planned for the next update.",
+      "priority": "P3",
+      "opened": "2026-09-14",
+      "last_updated": "2026-09-19",
+      "owner_team": "Application Support",
+      "related_article": "kb/app-crash"
+    },
+    {
+      "id": "SR-1014",
+      "status": "Resolved",
+      "summary": "Lost phone was reported; work data has been wiped and a replacement is on order.",
+      "priority": "P2",
+      "opened": "2026-09-24",
+      "last_updated": "2026-09-29",
+      "owner_team": "Security Operations",
+      "related_article": "kb/lost-device"
+    },
+    {
+      "id": "SR-1015",
+      "status": "Resolved",
+      "summary": "Suspicious email report was reviewed; no action is needed from you.",
+      "priority": "P3",
+      "opened": "2026-09-27",
+      "last_updated": "2026-09-28",
+      "owner_team": "Security Operations",
+      "related_article": "kb/phishing"
+    },
+    {
+      "id": "SR-1016",
+      "status": "Scheduled",
+      "summary": "USB storage exception is waiting for security approval.",
+      "priority": "P4",
+      "opened": "2026-09-13",
+      "last_updated": "2026-09-14",
+      "owner_team": "Security Operations",
+      "related_article": "kb/usb-storage"
+    },
+    {
+      "id": "SR-1017",
+      "status": "Waiting on requester",
+      "summary": "Printer on floor three is waiting for a technician visit.",
+      "priority": "P3",
+      "opened": "2026-09-23",
+      "last_updated": "2026-09-28",
+      "owner_team": "Facilities IT",
+      "related_article": "kb/printer"
+    },
+    {
+      "id": "SR-1018",
+      "status": "Resolved",
+      "summary": "Meeting room display was replaced and tested.",
+      "priority": "P3",
+      "opened": "2026-09-18",
+      "last_updated": "2026-09-21",
+      "owner_team": "Facilities IT",
+      "related_article": "kb/meeting-rooms"
+    },
+    {
+      "id": "SR-1019",
+      "status": "Resolved",
+      "summary": "Badge was reactivated at reception.",
+      "priority": "P4",
+      "opened": "2026-09-24",
+      "last_updated": "2026-09-24",
+      "owner_team": "Workplace Services",
+      "related_article": "kb/badge"
+    },
+    {
+      "id": "SR-1020",
+      "status": "Scheduled",
+      "summary": "Travel request for remote work abroad is waiting for security review.",
+      "priority": "P4",
+      "opened": "2026-09-24",
+      "last_updated": "2026-09-27",
+      "owner_team": "Security Operations",
+      "related_article": "kb/remote-travel"
+    },
+    {
+      "id": "SR-1021",
+      "status": "Waiting on requester",
+      "summary": "Departure request received; device return label has been emailed.",
+      "priority": "P4",
+      "opened": "2026-09-17",
+      "last_updated": "2026-09-18",
+      "owner_team": "Device Services",
+      "related_article": "kb/offboarding"
+    },
+    {
+      "id": "SR-1022",
+      "status": "Resolved",
+      "summary": "Mailbox archive was enabled after the mailbox reached its limit.",
+      "priority": "P3",
+      "opened": "2026-09-15",
+      "last_updated": "2026-09-18",
+      "owner_team": "Collaboration Services",
+      "related_article": "kb/mailbox-full"
+    },
+    {
+      "id": "SR-1023",
+      "status": "Resolved",
+      "summary": "Multifactor registration was reset with a temporary access pass.",
+      "priority": "P2",
+      "opened": "2026-09-22",
+      "last_updated": "2026-09-27",
+      "owner_team": "Access Operations",
+      "related_article": "kb/mfa-lost-phone"
+    },
+    {
+      "id": "SR-1024",
+      "status": "Waiting on requester",
+      "summary": "Repeated account lockouts were traced to an old saved password on a phone.",
+      "priority": "P3",
+      "opened": "2026-09-27",
+      "last_updated": "2026-09-27",
+      "owner_team": "Access Operations",
+      "related_article": "kb/account-unlock"
+    },
+    {
+      "id": "SR-1025",
+      "status": "Resolved",
+      "summary": "Loaner laptop was issued while the primary device is repaired.",
+      "priority": "P3",
+      "opened": "2026-09-15",
+      "last_updated": "2026-09-17",
+      "owner_team": "Device Services",
+      "related_article": "kb/loaner-devices"
+    },
+    {
+      "id": "SR-1026",
+      "status": "In progress",
+      "summary": "New laptop request is waiting for manager approval.",
+      "priority": "P4",
+      "opened": "2026-09-12",
+      "last_updated": "2026-09-14",
+      "owner_team": "Device Services",
+      "related_article": "kb/hardware-request"
+    },
+    {
+      "id": "SR-1027",
+      "status": "Scheduled",
+      "summary": "Replacement laptop has shipped and should arrive in two business days.",
+      "priority": "P3",
+      "opened": "2026-09-15",
+      "last_updated": "2026-09-20",
+      "owner_team": "Device Services",
+      "related_article": "kb/hardware-request"
+    },
+    {
+      "id": "SR-1028",
+      "status": "In progress",
+      "summary": "VPN certificate error is being investigated by the network team.",
+      "priority": "P2",
+      "opened": "2026-09-13",
+      "last_updated": "2026-09-13",
+      "owner_team": "Network Operations",
+      "related_article": "kb/vpn"
+    },
+    {
+      "id": "SR-1029",
+      "status": "Resolved",
+      "summary": "Remote desktop access was approved and is being configured.",
+      "priority": "P4",
+      "opened": "2026-09-23",
+      "last_updated": "2026-09-24",
+      "owner_team": "Network Operations",
+      "related_article": "kb/remote-desktop"
+    },
+    {
+      "id": "SR-1030",
+      "status": "Resolved",
+      "summary": "Shared mailbox access was granted; it may take two hours to appear.",
+      "priority": "P4",
+      "opened": "2026-09-24",
+      "last_updated": "2026-09-29",
+      "owner_team": "Collaboration Services",
+      "related_article": "kb/shared-mailbox"
     }
   ]
 }

@@ -8,6 +8,10 @@ Common failure modes for the Voice Live vs. Realtime API vs. Foundry voice-agent
 
 | Symptom | Likely cause | Fast fix | Section |
 |---|---|---|---|
+| Asterisk `Dial(WebSocket/...)` fails immediately: `Unable to create channel of type 'WebSocket'` | `chan_websocket` not loaded or Asterisk too old | Asterisk 20.16+/21.11+/22.6+/23; `module load chan_websocket.so` | [Asterisk channel](#asterisk-channel) |
+| Asterisk log or `probe-asterisk.py` shows HTTP 403 | Password in `websocket_client.conf` doesn't match `ASTERISK_WEBSOCKET_SECRET` | Re-run `enable-telephony.ps1 -WriteAsteriskConfig` and copy the file; reload `res_websocket_client.so` | [Asterisk channel](#asterisk-channel) |
+| Asterisk connect fails with HTTP 404 | `asterisk` not in `TELEPHONY_PROVIDERS`, so the route isn't mounted | `enable-telephony.ps1 -Providers asterisk`, then `azd provision` | [Asterisk channel](#asterisk-channel) |
+| Call connects then the app sends `HANGUP` | Unsupported codec, or every admission slot is busy | Use `c(slin24)` (or `ulaw`/`slin`); raise `MAX_CONCURRENT_SESSIONS` or route the dialplan to a queue after `Dial()` | [Asterisk channel](#asterisk-channel) |
 | Resources deploy into the wrong tenant or subscription | Ambient `az` or `azd` context drifted | Re-run tenant-explicit auth and verify `az account show` | [Tenant drift](#tenant-drift) |
 | `azd up` fails with `InsufficientQuota` | Realtime deployment capacity exceeds available quota | Lower `REALTIME_DEPLOYMENT_CAPACITY`, request quota, or use another viable region for capacity | [Quota and capacity](#quota-and-capacity) |
 | Model deployment rejected in a region | Model or version unavailable, or new quota is refused near model end of life | Pick a Tier-1 region and a current model version | [Model availability](#model-availability) |
@@ -37,6 +41,14 @@ Common failure modes for the Voice Live vs. Realtime API vs. Foundry voice-agent
 | No user transcript on Realtime | Input transcription deployment not configured | Set `REALTIME_TRANSCRIPTION_DEPLOYMENT` to a valid deployment name | [Realtime transcript](#realtime-transcript) |
 
 ---
+
+## Asterisk channel
+
+- **Check the endpoint first**, without Asterisk: `python scripts\probe-asterisk.py --url wss://<app-fqdn>/telephony/asterisk/media` with `ASTERISK_WEBSOCKET_SECRET` set. Expected: `subprotocol=media`, `START_MEDIA_BUFFERING`, agent audio.
+- **403** = wrong password (the `username` is ignored); **404** = `asterisk` not in `TELEPHONY_PROVIDERS`; **TLS errors** = Asterisk can't validate the Container Apps certificate (point `ca_list_file` at the system CA bundle; don't disable verification).
+- **`f(json)` rejected** on Asterisk older than 20.18/22.8/23.2: remove `f(json)`; the plain-text control format also works.
+- **Choppy or late audio**: use `c(slin24)` (no resampling); look for `asterisk_flow_control` (`MEDIA_XOFF`) events in the app logs.
+- **App logs**: filter Log Analytics on `channel == "asterisk"` (`voice_session_start/end`, `asterisk_auth_rejected`, `asterisk_unsupported_format`, `asterisk_call_busy`).
 
 ## Tenant drift
 

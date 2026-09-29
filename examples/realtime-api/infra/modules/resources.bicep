@@ -28,6 +28,8 @@ param realtimeDeploymentCapacity int
 param versionUpgradeOption string
 
 param realtimeVoice string
+@description('Foundry project created in standalone mode so the realtime deployment is used from a project, like the voice agent.')
+param realtimeProjectName string = 'voice-agents'
 param maxConcurrentSessions int
 param webExists bool
 param tags object
@@ -48,6 +50,9 @@ param telephonyWebhookSecret string = ''
 param acsEventGridSecret string = ''
 @secure()
 param twilioAuthToken string = ''
+@secure()
+@description('Password Asterisk sends (websocket_client.conf) to /telephony/asterisk/media.')
+param asteriskWebsocketSecret string = ''
 param telephonyOverflowNumber string = ''
 
 var suffix = uniqueString(subscription().id, environmentName, location)
@@ -65,6 +70,7 @@ var modelVersions = {
 }
 var resolvedModelVersion = empty(realtimeModelVersion) ? modelVersions[realtimeModel] : realtimeModelVersion
 var openAIUserRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+var foundryUserRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '53ca6127-db72-4b80-b1b0-d745d6d5456d')
 var acrPullRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
 var hasSharedRg = !empty(sharedResourceGroup)
 var useSharedFoundry = hasSharedRg && !empty(sharedFoundryName)
@@ -134,10 +140,35 @@ resource foundry 'Microsoft.CognitiveServices/accounts@2025-06-01' = if (!useSha
   sku: {
     name: 'S0'
   }
+  // A Foundry resource with project management: model deployments live on the resource and are
+  // visible and testable from every project on it (same end-user experience as the voice agent).
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     customSubDomainName: foundryName
     disableLocalAuth: true
     publicNetworkAccess: 'Enabled'
+    allowProjectManagement: true
+  }
+}
+
+resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = if (!useSharedFoundry) {
+  parent: foundry
+  name: realtimeProjectName
+  // The account accepts one child operation at a time; creating the project while the deployment
+  // updates fails with RequestConflict ("Another operation is in progress").
+  dependsOn: [
+    realtimeDeployment
+  ]
+  location: location
+  tags: tags
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    displayName: realtimeProjectName
+    description: 'Voice comparison demo: project that uses the realtime model deployment.'
   }
 }
 
@@ -168,6 +199,16 @@ resource uamiOpenAIUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = i
     roleDefinitionId: openAIUserRoleId
     principalId: uami.properties.principalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+resource principalFoundryUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!useSharedFoundry && !empty(principalId)) {
+  name: guid(resourceGroup().id, foundryName, principalId, foundryUserRoleId)
+  scope: foundry
+  properties: {
+    roleDefinitionId: foundryUserRoleId
+    principalId: principalId
+    principalType: principalType
   }
 }
 
@@ -278,6 +319,11 @@ var telephonyEnv = empty(telephonyProviders) ? [] : concat([
     name: 'TWILIO_AUTH_TOKEN'
     secretRef: 'twilio-auth-token'
   }
+], empty(asteriskWebsocketSecret) ? [] : [
+  {
+    name: 'ASTERISK_WEBSOCKET_SECRET'
+    secretRef: 'asterisk-websocket-secret'
+  }
 ])
 var appSecrets = concat(useAcs && !empty(acsEventGridSecret) ? [
   {
@@ -293,6 +339,11 @@ var appSecrets = concat(useAcs && !empty(acsEventGridSecret) ? [
   {
     name: 'twilio-auth-token'
     value: twilioAuthToken
+  }
+], empty(asteriskWebsocketSecret) ? [] : [
+  {
+    name: 'asterisk-websocket-secret'
+    value: asteriskWebsocketSecret
   }
 ])
 
@@ -390,4 +441,6 @@ output AZURE_OPENAI_ENDPOINT string = openAIEndpoint
 output AZURE_OPENAI_REALTIME_DEPLOYMENT string = deploymentName
 output AZURE_OPENAI_REALTIME_MODEL_VERSION string = resolvedModelVersion
 output FOUNDRY_RESOURCE_NAME string = useSharedFoundry ? sharedFoundryName : foundryName
+output FOUNDRY_PROJECT_NAME string = useSharedFoundry ? '' : realtimeProjectName
+output FOUNDRY_PROJECT_ENDPOINT string = useSharedFoundry ? '' : 'https://${foundrySubDomain}.services.ai.azure.com/api/projects/${realtimeProjectName}'
 output PUBLIC_BASE_URL string = publicBaseUrl

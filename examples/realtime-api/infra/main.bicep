@@ -53,6 +53,9 @@ param versionUpgradeOption string = 'OnceCurrentVersionExpired'
 
 param realtimeVoice string = 'marin'
 
+@description('Foundry project (standalone mode) that uses the realtime deployment.')
+param realtimeProjectName string = 'voice-agents'
+
 param maxConcurrentSessions int = 20
 
 param webExists bool = false
@@ -71,6 +74,8 @@ param telephonyWebhookSecret string = ''
 param acsEventGridSecret string = ''
 @secure()
 param twilioAuthToken string = ''
+@secure()
+param asteriskWebsocketSecret string = ''
 param telephonyOverflowNumber string = ''
 
 var tags = {
@@ -98,6 +103,7 @@ module resources 'modules/resources.bicep' = {
     realtimeDeploymentCapacity: realtimeDeploymentCapacity
     versionUpgradeOption: versionUpgradeOption
     realtimeVoice: realtimeVoice
+    realtimeProjectName: realtimeProjectName
     maxConcurrentSessions: maxConcurrentSessions
     webExists: webExists
     tags: tags
@@ -111,6 +117,7 @@ module resources 'modules/resources.bicep' = {
     telephonyWebhookSecret: telephonyWebhookSecret
     acsEventGridSecret: acsEventGridSecret
     twilioAuthToken: twilioAuthToken
+    asteriskWebsocketSecret: asteriskWebsocketSecret
     telephonyOverflowNumber: telephonyOverflowNumber
   }
 }
@@ -129,5 +136,7 @@ output AZURE_OPENAI_REALTIME_MODEL string = realtimeModel
 output AZURE_OPENAI_REALTIME_MODEL_VERSION string = resources.outputs.AZURE_OPENAI_REALTIME_MODEL_VERSION
 output REALTIME_VOICE string = realtimeVoice
 output FOUNDRY_RESOURCE_NAME string = resources.outputs.FOUNDRY_RESOURCE_NAME
+output FOUNDRY_PROJECT_NAME string = resources.outputs.FOUNDRY_PROJECT_NAME
+output FOUNDRY_PROJECT_ENDPOINT string = resources.outputs.FOUNDRY_PROJECT_ENDPOINT
 output PUBLIC_BASE_URL string = resources.outputs.PUBLIC_BASE_URL
 output TELEPHONY_PROVIDERS string = telephonyProviders

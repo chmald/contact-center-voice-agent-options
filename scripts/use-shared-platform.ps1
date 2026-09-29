@@ -21,7 +21,7 @@ param(
 
     [string]$ExampleEnv = "",
 
-    [ValidateSet("acs", "twilio")]
+    [ValidateSet("acs", "twilio", "asterisk")]
     [string[]]$Telephony = @(),
 
     [string]$TwilioAuthToken = "",
@@ -120,6 +120,11 @@ if ($Telephony.Count -gt 0) {
             throw "Pass -TwilioAuthToken (Twilio Console > Account > API keys & tokens > Auth token) to enable twilio."
         }
         if ($TwilioAuthToken) { Set-AzdValue "TWILIO_AUTH_TOKEN" $TwilioAuthToken }
+    }
+    if ($Telephony -contains "asterisk" -and -not $current["ASTERISK_WEBSOCKET_SECRET"]) {
+        # Password for Asterisk websocket_client.conf; read it back with: azd env get-value ASTERISK_WEBSOCKET_SECRET
+        Set-AzdValue "ASTERISK_WEBSOCKET_SECRET" (New-UrlSafeSecret)
+        Write-Host "Generated ASTERISK_WEBSOCKET_SECRET (stored only in the local azd env)."
     }
     Set-AzdValue "TELEPHONY_PROVIDERS" ($Telephony -join ",")
     if (-not $current["TELEPHONY_WEBHOOK_SECRET"]) {

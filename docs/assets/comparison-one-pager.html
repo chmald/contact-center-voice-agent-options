@@ -63,7 +63,7 @@
     </div>
   </div>
 
-  <div class="callout"><strong>Third option:</strong> Foundry voice agent is public preview. It stores instructions, tools, voice, versions, traces, and transcripts in a Foundry project, while the bridge sends only audio pipeline settings and executes tools. It uses Voice Live agent mode and shares Voice Live limits in shared-platform mode; do not position it as production-ready.</div>
+  <div class="callout"><strong>Third option:</strong> Foundry voice agent is public preview. It stores instructions, tools, voice, greeting, audio settings, versions, traces, and transcripts in a Foundry project; the bridge sends no session config and executes the tools (shared RAG). It connects through the project route <code>/api/projects/&lt;p&gt;/agents/&lt;a&gt;/endpoint/protocols/voice</code> (the older Voice Live agent-mode route disconnects <code>kind: voice</code> agents), runs on managed models with no deployment, and shares Voice Live limits with the Voice Live app in shared-platform mode. Do not position it as production-ready.</div>
 
   <h2>Core comparison</h2>
   <table class="compare">
@@ -71,26 +71,26 @@
     <tr><td>Status / endpoint</td><td>GA <code>2026-07-15</code>; <code>wss://&lt;foundry&gt;.services.ai.azure.com/voice-live/realtime?api-version=...&amp;model=...</code>.</td><td>GA <code>/openai/v1</code>; <code>wss://&lt;resource&gt;.openai.azure.com/openai/v1/realtime?model=&lt;deployment&gt;</code>; no <code>api-version</code>.</td></tr>
     <tr><td>Provisioning</td><td><code>AIServices</code> S0 resource, custom subdomain, local auth disabled; no model deployment.</td><td><code>AIServices</code> plus <code>accounts/deployments</code> Global Standard model deployment with capacity and version policy.</td></tr>
     <tr><td>Models</td><td><code>gpt-realtime-mini</code> GA Basic default; <code>gpt-realtime-2.1-mini</code> preview Basic.[4]</td><td><code>gpt-realtime-2.1-mini</code> <code>2026-07-07</code> GA default, retires <code>2027-06-25</code>; <code>gpt-realtime-mini</code> retirement rows conflict.[1]</td></tr>
-    <tr><td>Capacity</td><td>Per resource: <=120K TPM, 100 new connections/min, <=60-min sessions; connection/min support request raises dependent TPM.</td><td>Subscription-level TPM quota per model/global pool; base <code>gpt-realtime</code> default 100K TPM / 200 RPM; no PTU; TPM/unit not documented.[3]</td></tr>
+    <tr><td>Capacity</td><td>Not a deployment. Per resource: &le;120K TPM, 100 new connections/min, &le;60-min sessions; a support request raises connections/min, and TPM follows (TPM = NCPM &times; 4,000).</td><td>Deployment <strong>capacity units</strong>: <code>gpt-realtime-2.1-mini</code> 1 unit = 10,000 TPM + 20 RPM (default quota often 10 units = 100K TPM / 200 RPM; the portal shows TPM). Pooled per subscription + model version; no PTU.[3]</td></tr>
     <tr><td>Regions</td><td><code>centralus</code>, <code>eastus2</code>, <code>swedencentral</code>, <code>westus2</code> confirmed for demo default; coverage varies.</td><td>Global Standard: <code>canadacentral</code>, <code>centralus</code>, <code>eastus2</code>, <code>francecentral</code>, <code>swedencentral</code>, <code>southindia</code>; DZS conflict.[5]</td></tr>
     <tr><td>Auth / RBAC</td><td>Scope <code>https://ai.azure.com/.default</code>; Cognitive Services User <code>a97b...908</code> + Foundry User <code>53ca...56d</code>.</td><td>Scope <code>https://ai.azure.com/.default</code>; Cognitive Services OpenAI User <code>5e0b...61bd</code>.</td></tr>
     <tr><td>Schema / events</td><td>Flat <code>session.update</code>; <code>response.audio.delta</code>, <code>response.audio_transcript.delta</code>, <code>conversation.item.created</code>.</td><td>Nested GA schema; <code>response.output_audio.delta</code>, <code>response.output_audio_transcript.delta</code>, <code>conversation.item.added/.done</code>, <code>rate_limits.updated</code>.</td></tr>
     <tr><td>Audio features</td><td>Azure/OpenAI voices, Azure semantic VAD, deep noise suppression, server echo cancellation, built-in transcription.</td><td>OpenAI voices, semantic/server VAD, near/far-field noise reduction, optional separate transcription deployment.</td></tr>
-    <tr><td>Transports / extras</td><td>Server WSS in demo; telephony connectors in accelerator; Avatar, BYOM, agent mode, timestamps/visemes.</td><td>Server WSS in demo; WebRTC client secrets, <code>/realtime/calls</code>, SIP in limited regions.</td></tr>
+    <tr><td>Transports / extras</td><td>Server WSS in demo, with shared ACS, Twilio, and Asterisk (<code>chan_websocket</code>) adapters; Avatar, BYOM, agent mode, timestamps/visemes.</td><td>Server WSS in demo with the same ACS/Twilio/Asterisk adapters; WebRTC client secrets, <code>/realtime/calls</code>, SIP in limited regions.</td></tr>
     <tr><td>Pricing / monitoring</td><td>Per-1M-token Voice Live tiers; mini = Basic; no quoted dollar prices.[2] App metrics to Log Analytics.</td><td><code>2.1-mini</code> Global per 1M: text $0.60/$0.06 cached/$2.40 out; audio $10/$0.30 cached/$20 out. Add Azure OpenAI request/token/seconds metrics.</td></tr>
   </table>
 
   <div class="grid">
     <div>
       <h2>Code changes</h2>
-      <p><span class="pill">208 lines</span> Voice Live bridge vs <span class="pill">193 lines</span> Realtime bridge.</p>
+      <p><span class="pill">208 lines</span> Voice Live bridge vs <span class="pill">193 lines</span> Realtime bridge (<span class="pill">224 lines</span> preview voice-agent bridge).</p>
       <table class="mini">
         <tr><th>Hook</th><th>Delta</th></tr>
         <tr><td><code>build_url</code></td><td>Voice Live adds <code>/voice-live/realtime</code>, <code>api-version</code>, and model query. Realtime adds <code>/openai/v1/realtime</code> and deployment query.</td></tr>
         <tr><td><code>build_headers</code></td><td>Both use Entra; Realtime scope is env-overridable.</td></tr>
         <tr><td><code>session.update</code></td><td>Voice Live flat schema + Azure audio features; Realtime nested GA schema + optional transcription deployment.</td></tr>
         <tr><td>Events</td><td>Shared bridge accepts both audio/item naming families.</td></tr>
-        <tr><td>Infra</td><td>Realtime adds deployment resource, model version map, capacity param, and OpenAI User role. Everything else is shared.</td></tr>
+        <tr><td>Infra</td><td>Realtime adds deployment resource, model version map, capacity param (with a pre-provision quota check), and OpenAI User role. Every example creates a Foundry resource with a <code>voice-agents</code> project; everything else is shared.</td></tr>
       </table>
     </div>
     <div>
@@ -121,6 +121,6 @@
   </div>
 
   <h2>Sources</h2>
-  <p class="sources">Verified 2026-09-25; preview voice-agent note added 2026-09-29. Sources: Voice Live API reference, overview, release notes, quotas, regions, and pricing pages; Azure OpenAI Realtime how-to, WebRTC how-to, model retirement schedule, quotas/limits, quota management, region availability, pricing page, and Azure Retail Prices API. Repo code inspected: both bridges, both <code>resources.bicep</code>, both <code>azure.yaml</code>, both READMEs, and shared bridge. Re-verify model lifecycle, regions, quota, and pricing before customer use. Footnotes: [1] retirement conflict; [2] no Voice Live dollars quoted; [3] realtime TPM/unit gap; [4] Voice Live 2.1-mini preview; [5] DZS availability conflict.</p>
+  <p class="sources">Verified 2026-09-25; updated 2026-09-29 (capacity units from the live deployment and model catalog, voice-agent project route, Asterisk telephony). Sources: Voice Live API reference, overview, release notes, quotas, regions, and pricing pages; Azure OpenAI Realtime how-to, WebRTC how-to, model retirement schedule, quotas/limits, quota management, region availability, pricing page, and Azure Retail Prices API. Repo code inspected: both bridges, both <code>resources.bicep</code>, both <code>azure.yaml</code>, both READMEs, and shared bridge. Re-verify model lifecycle, regions, quota, and pricing before customer use. Footnotes: [1] retirement conflict; [2] no Voice Live dollars quoted; [3] capacity units observed 2026-09-29 via <code>az cognitiveservices model list</code> and a live deployment (the usage row is labelled Requests Per Minute but counts units); [4] Voice Live 2.1-mini preview; [5] DZS availability conflict.</p>
 </body>
 </html>

@@ -2,6 +2,10 @@
 
 Server-side WebSocket bridge for the Azure OpenAI GPT Realtime API GA surface. It keeps credentials and tools on the server; for production browser audio, prefer WebRTC with `POST https://<resource>.openai.azure.com/openai/v1/realtime/client_secrets`, then `/openai/v1/realtime/calls`.
 
+## Foundry project
+
+The Foundry resource is created with project management enabled and a `voice-agents` project (`REALTIME_PROJECT_NAME`), matching the voice agent example. Model deployments belong to the Foundry resource and are shared with its projects, so `gpt-realtime-2.1-mini` appears under the project in the Foundry portal (Models + endpoints, playground). The app still connects to the resource's `/openai/v1/realtime` endpoint. The project is created after the deployment because the resource accepts one child operation at a time (otherwise `RequestConflict`).
+
 ## 1. Tenant-explicit auth
 
 Never rely on ambient Azure CLI state:
@@ -79,6 +83,17 @@ azd down --purge
 ```
 
 `--purge` matters because soft-deleted Foundry resources retain names and quota until purged.
+
+## Optional: knowledge base and phone channels
+
+Browser-only by default. To add the synthetic Azure AI Search knowledge base or phone channels (Asterisk over WSS, Twilio, ACS),
+see [03 — Optional add-ons](../../docs/03-deployment.md#optional-add-ons-knowledge-base-and-phone-channels). Asterisk in three commands:
+
+```powershell
+../../scripts/enable-telephony.ps1 -Example realtime-api -Providers asterisk   # generates the secrets
+azd up
+../../scripts/enable-telephony.ps1 -Example realtime-api -WriteAsteriskConfig  # writes .azure/<env>/asterisk/*.conf
+```
 
 ## Configuration
 

@@ -10,7 +10,8 @@ pool. The browser demo is unchanged; everything here is opt-in.
 |---|---|
 | One AI endpoint for all three apps | `platform/` azd project provisions one Foundry (AI Services) resource with one Global Standard realtime deployment and one Foundry project for the voice agent. All three examples run in **shared mode** and only grant their identities access to it. |
 | Phone calls over Azure | ACS Call Automation answers PSTN calls (ACS number or Direct Routing) and streams audio over a **WebSocket** to the same bridge the browser uses. |
-| Phone calls over Twilio | Twilio Media Streams (`<Connect><Stream>`) over a **WebSocket**. Works for Twilio numbers and Twilio SIP Domains, so an existing PBX (for example FreePBX over a Twilio Elastic SIP Trunk) can route an extension or IVR option to the agent. |
+| Phone calls over Twilio | Twilio Media Streams (`<Connect><Stream>`) over a **WebSocket**. Works for Twilio numbers and Twilio SIP Domains, so an existing PBX (for example Asterisk with a SIP trunk to a Twilio SIP Domain) can route an extension or IVR option to the agent. |
+| Phone calls from Asterisk directly | Asterisk `chan_websocket` streams call audio over **WSS** to `/telephony/asterisk/media` (no Twilio, no SIP). |
 | RAG on every channel | `search_knowledge_base` tool (`knowledge_search` handler) queries Azure AI Search (keyword + semantic ranker, managed identity) or a local JSON file. Same tool, same results on browser, ACS, and Twilio calls. |
 | One admission counter | Browser tabs and phone calls share `MAX_CONCURRENT_SESSIONS`. Caller N+1 is sent to `TELEPHONY_OVERFLOW_NUMBER` (human queue) or rejected as busy. |
 
@@ -44,6 +45,7 @@ index, and ACS resource are shared.
 | Browser | PCM16 24 kHz (JSON over WebSocket) | none | client flushes playback |
 | ACS | `pcm24KMono`, bidirectional WebSocket (`AudioData`) | none | `StopAudio` |
 | Twilio / SIP Domain | G.711 mu-law 8 kHz (`media` events) | decode + 3x upsample in, low-pass + 3x decimate + encode out | `clear` |
+| Asterisk (`chan_websocket`) | Raw BINARY frames, `slin24` recommended (`ulaw`/`slin` supported) | none for `slin24` | `FLUSH_MEDIA` |
 
 Both upstream sessions always receive PCM16 24 kHz, so the Voice Live vs Realtime comparison
 stays apples-to-apples across channels. Telephone calls carry only 8 kHz audio, which is
@@ -217,15 +219,15 @@ Event Grid validation handshake succeeds.
 Set the Voice webhook (HTTP POST) to `https://<app>/telephony/twilio/voice`:
 
 - **Twilio number:** Phone Numbers → the number → *A call comes in* → Webhook.
-- **PBX over SIP (FreePBX/Asterisk example):**
+- **Asterisk over a SIP trunk (via Twilio):**
   1. Twilio Console → Voice → *SIP Domains* → create `<name>.sip.twilio.com`; set *A call comes
-     in* to the webhook above; restrict with an IP access control list for the PBX's public IP
+     in* to the webhook above; restrict with an IP access control list for Asterisk's public IP
      (and/or a credential list).
-  2. FreePBX → *Trunks* → add a PJSIP trunk to `<name>.sip.twilio.com` (outbound only).
-  3. FreePBX → *Outbound Routes* (dial pattern such as `7777`) or a *Misc Destination* /
-     IVR option that dials the agent through that trunk.
-  4. Existing inbound path is unchanged: PSTN → Twilio number → Elastic SIP Trunk → FreePBX →
-     extension/IVR → (option) → SIP Domain → agent.
+  2. Asterisk `pjsip.conf`: an outbound endpoint + AOR whose contact is `sip:<name>.sip.twilio.com`
+     (TLS transport recommended).
+  3. Dialplan: `exten => 7777,1,Dial(PJSIP/7777@<twilio-endpoint>)` (or an IVR option that does the same).
+  4. Inbound calls are unchanged: PSTN → your carrier/trunk → Asterisk → extension/IVR → (option) →
+     SIP Domain → agent.
 
 Point one Twilio number (or one SIP Domain) at each app; to compare, change the webhook
 between the two app URLs or use two numbers.
@@ -233,6 +235,84 @@ between the two app URLs or use two numbers.
 **Generic customer pattern:** an existing contact-center platform or SBC reaches ACS through
 **Direct Routing**, or any platform that can stream call audio over a WebSocket can be added
 as another adapter in `shared/voiceagent_core/telephony/` without changing the bridge.
+
+### 7. Connect Asterisk directly over WSS (no Twilio)
+
+Asterisk 20.16+, 21.11+, 22.6+ and 23 include the WebSocket channel driver (`chan_websocket`). An
+extension can `Dial()` a WebSocket client and Asterisk opens an **outbound** WSS connection to the app,
+streaming raw call audio (BINARY frames) with control messages (TEXT frames). The app accepts it at:
+
+```text
+wss://<app-fqdn>/telephony/asterisk/media
+```
+
+Enable it on an example (standalone or shared mode), deploy, and generate the Asterisk config:
+
+```powershell
+./scripts/enable-telephony.ps1 -Example <example> -Providers asterisk     # generates TELEPHONY_WEBHOOK_SECRET + ASTERISK_WEBSOCKET_SECRET
+cd examples\<example>; azd up; cd ..\..
+./scripts/enable-telephony.ps1 -Example <example> -WriteAsteriskConfig    # writes .azure\<env>\asterisk\*.conf
+```
+
+Secret details, manual generation, and rotation: [03 — Deploy with the Asterisk channel](03-deployment.md#deploy-with-the-asterisk-channel).
+The files below are what `-WriteAsteriskConfig` produces.
+
+**`/etc/asterisk/websocket_client.conf`**:
+
+```ini
+[voice_agent]
+type = websocket_client
+connection_type = per_call_config
+uri = wss://<app-fqdn>/telephony/asterisk/media
+protocols = media
+username = asterisk
+password = <ASTERISK_WEBSOCKET_SECRET>
+tls_enabled = yes
+connection_timeout = 3000
+```
+
+**Dialplan** (`extensions.conf`; use whichever context your phones dial from):
+
+```ini
+[internal]
+exten => 7001,1,Dial(WebSocket/voice_agent/c(slin24)f(json))
+ same => n,Hangup()
+```
+
+- `c(slin24)` sends PCM16 24 kHz, which is exactly what the bridge uses, so no resampling. `ulaw` and `slin` (8 kHz) also work (converted at the edge).
+- `f(json)` selects JSON control messages (Asterisk 20.18+/22.8+/23.2+); plain text also works.
+- Auth: HTTP Basic with the password above, or add `v(secret=<ASTERISK_WEBSOCKET_SECRET>)` to the dial string.
+- Agent speech is sent between `START_MEDIA_BUFFERING` / `STOP_MEDIA_BUFFERING` so Asterisk frames and times it; barge-in sends `FLUSH_MEDIA`.
+- When every admission slot is taken, the app sends `HANGUP` and closes, so `Dial()` returns and the dialplan can continue (e.g. `same => n,Queue(support)` for a human queue).
+- One extension per example: point a second `websocket_client` entry (e.g. `[voice_live]`) at another app's FQDN.
+
+**Verify before pointing Asterisk at it** (simulates `chan_websocket`: Basic auth, `media` subprotocol, JSON `MEDIA_START`, slin24 silence):
+
+```powershell
+$env:ASTERISK_WEBSOCKET_SECRET = azd env get-value ASTERISK_WEBSOCKET_SECRET
+python scripts\probe-asterisk.py --url wss://<app-fqdn>/telephony/asterisk/media
+```
+
+Expected: `connected (subprotocol=media)`, `START_MEDIA_BUFFERING`, then agent audio (the greeting). A wrong secret returns HTTP 403.
+
+#### `chan_websocket` vs. a PJSIP `wss` transport
+
+A PJSIP endpoint with `transport=wss` (for example an AOR contact of
+`sip:<app-fqdn>:443;transport=wss`) is **SIP over WebSocket** (RFC 7118), the signaling used by WebRTC
+softphones. It does **not** work with this app:
+
+| | `chan_websocket` (`Dial(WebSocket/...)`) | PJSIP `transport=wss` |
+|---|---|---|
+| What travels over the WebSocket | The call **audio** (raw `slin24`/`ulaw` frames) + small control messages | Only **SIP signaling** (INVITE, 200 OK, BYE with SDP) |
+| Where the audio goes | Same WebSocket | Separate **RTP/SRTP** streams (WebRTC: DTLS-SRTP + ICE), negotiated in SDP |
+| What the app must implement | This demo's `/telephony/asterisk/media` adapter | A full SIP user agent plus an RTP/WebRTC media stack |
+| Direction | Asterisk connects **out** to the app (`websocket_client.conf`) | Asterisk's PJSIP WebSocket transport **accepts** connections (it rides the built-in HTTP server for browser softphones); it is not an outbound trunk to a remote WSS server |
+| Reachable on Azure Container Apps | Yes (HTTPS/WSS ingress on 443) | No: ingress only carries HTTP/WebSocket, so UDP RTP can't reach the app |
+
+Two smaller notes on that snippet: `bind` on a `wss` transport is ignored (it uses the HTTP server in
+`http.conf`), and `vp8`/`h264` are video codecs the voice agent never uses. To reach the agent **over SIP**,
+use a SIP-to-WebSocket gateway in front of the app: a Twilio SIP Domain (step 6) or an ACS Direct Routing SBC.
+To reach it **directly from Asterisk**, use `chan_websocket` as shown above.
 
 ## Test plan
 

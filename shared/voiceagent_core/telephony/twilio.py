@@ -4,7 +4,7 @@ Works for any call that Twilio can hand to a TwiML webhook:
 
 - a Twilio phone number whose Voice webhook is ``POST /telephony/twilio/voice``
 - a Twilio **SIP Domain** with the same Voice URL - this is how an existing PBX
-  (for example FreePBX/Asterisk with a Twilio Elastic SIP Trunk) routes an
+  (for example Asterisk with a SIP trunk to a Twilio SIP Domain) routes an
   extension, IVR option, or queue overflow to the agent over SIP.
 
 The webhook validates ``X-Twilio-Signature`` and returns

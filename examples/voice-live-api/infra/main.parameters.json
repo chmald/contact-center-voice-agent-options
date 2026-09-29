@@ -20,6 +20,9 @@
     "voiceLiveModel": {
       "value": "${VOICE_LIVE_MODEL=gpt-realtime-mini}"
     },
+    "voiceLiveProjectName": {
+      "value": "${VOICE_LIVE_PROJECT_NAME=voice-agents}"
+    },
     "voiceLiveVoice": {
       "value": "${VOICE_LIVE_VOICE=en-US-Ava:DragonHDLatestNeural}"
     },
@@ -55,6 +58,9 @@
     },
     "acsEventGridSecret": {
       "value": "${ACS_EVENTGRID_SECRET=}"
+    },
+    "asteriskWebsocketSecret": {
+      "value": "${ASTERISK_WEBSOCKET_SECRET=}"
     },
     "twilioAuthToken": {
       "value": "${TWILIO_AUTH_TOKEN=}"

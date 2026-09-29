@@ -24,7 +24,7 @@ The third example, `examples\foundry-voice-agent\`, is a Foundry Agent Service v
 
 Capacity-wise, it behaves like Voice Live for this demo: no model deployment and no Azure OpenAI quota, but it shares the resource's Voice Live new-connection and TPM limits when run on the shared platform. Treat it as a preview governance/observability option, not a production replacement for the two GA API paths.
 
-> **PDF note:** `docs\assets\comparison-one-pager.pdf` reflects the two-API version dated 2026-09-25. It was not regenerated for the preview voice-agent update.
+> **PDF note:** `docs\assets\comparison-one-pager.pdf` was regenerated from the HTML on 2026-09-29 (headless Edge `--print-to-pdf`) and matches this page.
 
 ## Side-by-side comparison
 

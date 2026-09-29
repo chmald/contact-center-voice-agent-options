@@ -35,9 +35,11 @@ All three share one browser client, one WebSocket bridge, one agent profile, one
 | **Auth** | Entra ID (key locally) | Entra ID (key locally) | **Entra ID only** |
 | **Audio pipeline** | Azure semantic VAD, deep noise suppression, echo cancellation, built-in transcription | Semantic/server VAD, near/far-field noise reduction, transcription needs its own deployment | Same as Voice Live |
 | **Tools / RAG in this demo** | Shared `search_knowledge_base` + record lookup, run by the bridge | Same | Same functions declared on the agent, run by the bridge |
-| **Phone calls in this demo** | ACS number / Direct Routing, Twilio number or SIP Domain (PBX) via the shared bridge | Same | Same (Foundry's native Twilio/Teams phone binding exists but is not used, so all three stay aligned) |
+| **Phone calls in this demo** | ACS number / Direct Routing, Twilio number or SIP Domain, or Asterisk over WSS (`chan_websocket`) via the shared bridge | Same | Same (Foundry's native Twilio/Teams phone binding exists but is not used, so all three stay aligned) |
 | **Platform extras** | Avatar, BYOM, interim responses | WebRTC client secrets, direct SIP (eastus2/swedencentral), GA schema | Foundry portal, stored transcripts + audio, voice traces, rubric evaluations, agent versioning, native Twilio/Teams Phone, transfer to human |
 | **Choose it when** | You want managed capacity and Azure audio features now, in production | You need direct control of the deployed model and already have quota | You want the agent to be a governed Foundry asset (versions, evaluation, observability) and can accept preview |
+
+**Knowledge base:** all three answer from the same synthetic service-desk knowledge base (40 articles, 30 request records) in Azure AI Search through the shared `search_knowledge_base` tool — see [10 — Knowledge base](./docs/10-knowledge-base.md).
 
 Deeper material: [06 — Voice Live vs Realtime one-pager](./docs/06-comparison-one-pager.md) · [07 — Telephony, RAG, shared endpoint, and quota](./docs/07-telephony-and-shared-endpoint.md) · [09 — Environment variables](./docs/09-environment-variables.md).
 
@@ -45,12 +47,12 @@ Deeper material: [06 — Voice Live vs Realtime one-pager](./docs/06-comparison-
 
 | Example folder | What you provision | Auth role(s) assigned by Bicep |
 |---|---|---|
-| `examples\voice-live-api\` | Container Apps, ACR Basic, Log Analytics, user-assigned managed identity, Foundry resource (`AIServices`, S0, `disableLocalAuth`) | Cognitive Services User, Foundry User, AcrPull |
-| `examples\realtime-api\` | Same app stack plus a Global Standard realtime model deployment | Cognitive Services OpenAI User, AcrPull |
+| `examples\voice-live-api\` | Container Apps, ACR Basic, Log Analytics, user-assigned managed identity, Foundry resource (`AIServices`, S0, `disableLocalAuth`, project management) + a `voice-agents` **project** (no model deployment) | Cognitive Services User, Foundry User, AcrPull |
+| `examples\realtime-api\` | Same app stack; Foundry resource with project management + a `voice-agents` **project**, and the Global Standard realtime model deployment used from that project | Cognitive Services OpenAI User, AcrPull; deploying user also gets Foundry User |
 | `examples\foundry-voice-agent\` | Same app stack; Foundry resource with project management + a Foundry **project**; the agent is created by the `postprovision` hook | Cognitive Services User, Foundry User, AcrPull |
 | `platform\` (optional) | One Foundry endpoint + realtime deployment + voice-agent project, Azure AI Search, ACS — shared by all three | Developer: Foundry/OpenAI/Search roles |
 
-Every example deploys one Azure Container App replica with server-side admission control, exposes `/healthz`, `/api/info`, and `/ws`, and builds in ACR through `docker.remoteBuild: true`.
+Every example also creates a Foundry resource with a `voice-agents` project, so all three look the same in the Foundry portal (the Realtime deployment appears under its project; Voice Live and the voice agent use managed models). Every example deploys one Azure Container App replica with server-side admission control, exposes `/healthz`, `/api/info`, and `/ws`, and builds in ACR through `docker.remoteBuild: true`.
 
 **Phone calls, RAG, and one shared AI endpoint (opt-in).** The `platform\` azd project provisions one Foundry endpoint (with a realtime deployment and a voice-agent project), an Azure AI Search index, and Azure Communication Services. In shared mode all three examples use that single endpoint in one subscription, answer real phone calls over WebSocket through ACS or Twilio (including a PBX via Twilio SIP Domain), and ground answers with `search_knowledge_base` on every channel. See [docs\07-telephony-and-shared-endpoint.md](./docs/07-telephony-and-shared-endpoint.md).
 
@@ -62,7 +64,8 @@ Every example deploys one Azure Container App replica with server-side admission
 | **`AZURE_APP_LOCATION`** | App region (Container Apps, ACR, Log Analytics). Set it when **Container Apps capacity is constrained** in the AI region; use the same value for all three examples. |
 | `REALTIME_DEPLOYMENT_CAPACITY` | Realtime deployment size in capacity units (default `10` = 100K TPM / 200 RPM for `gpt-realtime-2.1-mini`); checked before provisioning. |
 | `SHARED_RESOURCE_GROUP` / `SHARED_FOUNDRY_NAME` / `SHARED_FOUNDRY_PROJECT` | Put the examples on the one shared endpoint. |
-| `TELEPHONY_PROVIDERS` | `acs`, `twilio`, or both. |
+| `TELEPHONY_PROVIDERS` | Any of `acs`, `twilio`, `asterisk`. |
+| `AZURE_SEARCH_SERVICE_NAME` (+ `SHARED_RESOURCE_GROUP`) | Point an example at the synthetic knowledge base; set by `scripts\use-knowledge-base.ps1`. |
 
 Full list with defaults and scope: [docs\09-environment-variables.md](./docs/09-environment-variables.md).
 
@@ -174,12 +177,16 @@ All narrative documentation lives under `docs\`. The repo root holds only this R
 | [`docs\05-troubleshooting.md`](./docs/05-troubleshooting.md) | Symptom-first troubleshooting guide. |
 | [`docs\06-comparison-one-pager.md`](./docs/06-comparison-one-pager.md) | Detailed Voice Live vs. Realtime comparison and positioning one-pager. |
 | [`docs\07-telephony-and-shared-endpoint.md`](./docs/07-telephony-and-shared-endpoint.md) | Shared single-endpoint platform, ACS/Twilio/PBX phone channels, RAG, quota comparison, and the phone test plan. |
+| [`docs\10-knowledge-base.md`](./docs/10-knowledge-base.md) | Synthetic knowledge base (40 articles, 30 request records), `knowledge\` azd project for Azure AI Search, and wiring the examples to it. |
+| `knowledge\` | Infra-only azd project: Azure AI Search + synthetic `knowledge` index (postprovision loads it). |
 | [`docs\09-environment-variables.md`](./docs/09-environment-variables.md) | Every deploy-time and runtime variable, with defaults, scope, and capacity-constraint guidance (`AZURE_APP_LOCATION`). |
 | `examples\foundry-voice-agent\` | Foundry voice agent (preview) example; agent created by `scripts\create-voice-agent.py`. |
 | `platform\` | Infra-only azd project: one Foundry endpoint + realtime deployment, AI Search, ACS. |
 | `shared\voiceagent_core\telephony\` | ACS Call Automation and Twilio Media Streams adapters, audio conversion, webhook security. |
 | `shared\voiceagent_core\rag.py` | `knowledge_search` tool handler (Azure AI Search or local JSON). |
 | `config\knowledge-base.json` | Sample knowledge documents for the RAG tool and index loader. |
+| `scripts\enable-telephony.ps1` | Turn on phone channels (Asterisk, Twilio, ACS) for an example, generate their secrets, and write ready-to-copy Asterisk config after deploy. |
+| `scripts\probe-asterisk.py`, `scripts\probe-voice-agent.py` | Verify the Asterisk endpoint and the voice agent connection without a phone or browser. |
 | `scripts\use-shared-platform.ps1`, `scripts\configure-telephony.ps1`, `scripts\load-knowledge-index.py` | Wire an example to the platform, route phone numbers, load the index. |
 | [`docs\assets\voice-live-vs-realtime-api-architecture.drawio`](./docs/assets/voice-live-vs-realtime-api-architecture.drawio) | 4-page architecture source: solution architecture, three ways to connect, phone call flow, deployment and regions. |
 | `docs\assets\diagrams\*.png` | PNG exports embedded in the README and docs. Regenerate: `python scripts\build-diagrams.py` then `pwsh scripts\export-diagrams.ps1` (draw.io Desktop). |

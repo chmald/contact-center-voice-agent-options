@@ -65,6 +65,9 @@
     "acsEventGridSecret": {
       "value": "${ACS_EVENTGRID_SECRET=}"
     },
+    "asteriskWebsocketSecret": {
+      "value": "${ASTERISK_WEBSOCKET_SECRET=}"
+    },
     "twilioAuthToken": {
       "value": "${TWILIO_AUTH_TOKEN=}"
     },

@@ -295,6 +295,10 @@ def test_infra_contains_voice_live_contract_guards(repo_root):
     assert "disableLocalAuth: true" in text
     assert "2026-07-15" in text
     assert "'azd-service-name': 'web'" in text
+    # Same Foundry project experience as the Realtime and voice agent examples; still no model deployment.
+    assert "allowProjectManagement: true" in text
+    assert "Microsoft.CognitiveServices/accounts/projects@" in text
+    assert "accounts/deployments" not in text
 
 
 def test_azure_yaml_uses_repo_context_and_remote_build(repo_root):

@@ -292,6 +292,10 @@ def test_infra_contains_realtime_contract_guards(repo_root):
     assert "'azd-service-name': 'web'" in text
     assert "dependsOn:" in text
     assert "realtimeDeployment" in text
+    # Same end-user experience as the voice agent: the deployment is used from a Foundry project.
+    assert "allowProjectManagement: true" in text
+    assert "Microsoft.CognitiveServices/accounts/projects@" in text
+    assert "53ca6127-db72-4b80-b1b0-d745d6d5456d" in text  # Foundry User for the deploying user
 
 
 def test_azure_yaml_uses_repo_context_and_remote_build(repo_root):
