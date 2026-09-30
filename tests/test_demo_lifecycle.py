@@ -47,7 +47,7 @@ function global:az {
         }
         $name = Flag $a '--name'
         if ($a[1] -eq 'exists') { return "$($global:Groups.ContainsKey($name))".ToLowerInvariant() }
-        if ($a[1] -eq 'show') { return $(if ($global:BadTag) {'unrelated'} else {$global:Groups[$name]}) }
+        if ($a[1] -eq 'show') { return (@{ 'azd-env-name' = $(if ($global:BadTag) {'unrelated'} else {$global:Groups[$name]}) } | ConvertTo-Json -Compress) }
     }
     if ($a[0] -eq 'provider') { return 'Central US' }
     if ($a[0] -eq 'login' -or ($a[0] -eq 'account' -and $a[1] -eq 'set')) { return }

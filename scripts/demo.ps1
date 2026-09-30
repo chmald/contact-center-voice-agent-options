@@ -228,7 +228,9 @@ foreach ($project in $Projects) {
     if ($local) { Assert-Environment $project (Read-Values $project) -AllowMissingTenant:($phase -eq 'Initializing' -and -not $exists) }
     elseif ($exists) { throw "$($project.Env): local azd environment missing. Recover it before operating on the resource group." }
     if ($exists) {
-        $tag = Invoke-Tool 'az' @('group', 'show', '--name', "rg-$($project.Env)", '--subscription', "$SubscriptionId", '--query', 'tags."azd-env-name"', '-o', 'tsv') -Capture
+        # Parse tags as JSON: az.cmd strips the quotes a hyphenated JMESPath key needs.
+        $tags = (Invoke-Tool 'az' @('group', 'show', '--name', "rg-$($project.Env)", '--subscription', "$SubscriptionId", '--query', 'tags', '-o', 'json') -Capture) -join "`n" | ConvertFrom-Json -AsHashtable
+        $tag = if ($tags) { $tags['azd-env-name'] } else { $null }
         if ("$tag" -ne $project.Env) { throw "$($project.Env): resource-group ownership tag mismatch." }
     }
 }
@@ -323,7 +325,16 @@ try {
         if (-not $url -or $url -notmatch '^https://') { throw "$($project.Env): no HTTPS app URL was returned." }
         $State.Projects[$project.Env].Url = $url
         $State.Projects[$project.Env].Phase = 'Deployed'; Save-State
-        $health = Invoke-RestMethod -Uri "$($url.TrimEnd('/'))/healthz" -TimeoutSec 60
+        # A fresh revision can take a few minutes to become reachable through ingress.
+        $health = $null
+        for ($attempt = 1; -not $health; $attempt++) {
+            try { $health = Invoke-RestMethod -Uri "$($url.TrimEnd('/'))/healthz" -TimeoutSec 30 }
+            catch {
+                if ($attempt -ge 10) { throw }
+                Write-Host "  waiting for $($project.Name) to respond (attempt $attempt/10)..."
+                Start-Sleep -Seconds 15
+            }
+        }
         $info = Invoke-RestMethod -Uri "$($url.TrimEnd('/'))/api/info" -TimeoutSec 60
         if ($health.status -ne 'ok' -or $info.api -notlike "$($project.Api)*" -or $info.knowledge -ne 'azure-ai-search:knowledge' -or
             (@($info.telephony | Sort-Object) -join ',') -ne ($Providers -join ',')) {
