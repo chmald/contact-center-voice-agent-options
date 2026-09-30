@@ -430,6 +430,8 @@ openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 
 Then `azd env set ASTERISK_WEBSOCKET_SECRET <value>` (and `TELEPHONY_WEBHOOK_SECRET`) and `azd provision`.
 
+**After every `azd down` + `azd up`** the Container Apps hostname changes: re-run `-WriteAsteriskConfig` and update Asterisk, or calls fail before reaching the app.
+
 **Rotate** with `./scripts/enable-telephony.ps1 -Example <x> -Providers asterisk -RotateSecrets`, `azd provision`,
 then `-WriteAsteriskConfig` again and update Asterisk (calls fail with HTTP 403 until the password matches).
 **Turn off** all phone channels with `-Disable` and `azd provision`.
