@@ -6,7 +6,7 @@ Reusable, generic Microsoft demo repo for comparing **three ways to build a cont
 2. **Azure OpenAI GPT Realtime API (GA)** — you deploy and size a realtime model.
 3. **Foundry voice agent (public preview)** — a Foundry Agent Service agent served by Voice Live in agent mode.
 
-All three share one browser client, one WebSocket bridge, one agent profile, one RAG tool, one set of phone adapters (ACS and Twilio), and one load probe; the only intentional difference is the upstream. Defaults: `gpt-realtime-mini` (Voice Live), `gpt-realtime-2.1-mini` (Realtime), `gpt-realtime-2.1-mini` (voice agent).
+All three reuse the same browser client, WebSocket bridge core, agent profile, RAG tool, phone adapters (ACS, Twilio, and Asterisk), and load probe; the only intentional difference is the upstream. They run as **three separate app instances**, not one shared bridge service. Defaults: `gpt-realtime-mini` (Voice Live), `gpt-realtime-2.1-mini` (Realtime), `gpt-realtime-2.1-mini` (voice agent).
 
 > **Generic on purpose.** The shipped sample domain is the fictional **Contoso service desk**. Retargeting the demo is a config change in `config\agent-profile.json` and `config\sample-data.json`, not a code fork. See [Adapting this pattern to another domain](./docs/01-architecture.md#adapting-this-pattern-to-another-domain).
 
@@ -14,7 +14,7 @@ All three share one browser client, one WebSocket bridge, one agent profile, one
 
 ## Comparing the three options
 
-![Solution architecture: callers, telephony, shared bridge in Azure Container Apps, and three upstreams on one Foundry resource](./docs/assets/diagrams/01-solution-architecture.png)
+![Shared-mode solution architecture: callers, optional telephony, three Container Apps reusing the bridge core, one Foundry resource, and separate Azure AI Search](./docs/assets/diagrams/01-solution-architecture.png)
 
 ![Three ways to connect: what the bridge sends, the endpoint, the model or agent, and what limits capacity](./docs/assets/diagrams/02-three-ways-to-connect.png)
 
@@ -29,7 +29,7 @@ All three share one browser client, one WebSocket bridge, one agent profile, one
 | **Model deployment?** | **No** | **Yes** | **No** |
 | **What limits capacity** | Per-resource Voice Live limits: 100 new connections/min, ≤120K TPM, ≤60-min sessions | Deployment quota in **capacity units** (gpt-realtime-2.1-mini: 1 unit = 10K TPM + 20 RPM; often 10 units = 100K TPM by default), pooled per subscription + model version | Same per-resource Voice Live limits, plus Agent Service limits (60-min sessions) |
 | **Fails early or under load?** | Under load (throttling) | At deploy time (`InsufficientQuota`) and under load | Under load (throttling) |
-| **How to get more** | Azure support request (raise new connections/min; TPM = NCPM × 4,000) | Azure OpenAI quota request; can be refused for versions near retirement | Same as Voice Live |
+| **How to get more** | Azure support request (raise new connections/min; confirm effective TPM because the documented formula and defaults disagree — see [quota caveat](./docs/06-comparison-one-pager.md#side-by-side-comparison)) | Azure OpenAI quota request; can be refused for versions near retirement | Same as Voice Live |
 | **Model lifecycle** | Service-managed | You manage versions, upgrade policy, and retirement dates | Service-managed; pin behaviour with agent versions |
 | **Wire protocol** | `wss://…/voice-live/realtime?api-version=2026-07-15&model=…` | `wss://…/openai/v1/realtime?model=<deployment>` | `wss://…/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` + `Foundry-Features: VoiceAgents=V1Preview` |
 | **Auth** | Entra ID (key locally) | Entra ID (key locally) | **Entra ID only** |
@@ -39,22 +39,24 @@ All three share one browser client, one WebSocket bridge, one agent profile, one
 | **Platform extras** | Avatar, BYOM, interim responses | WebRTC client secrets, direct SIP (eastus2/swedencentral), GA schema | Foundry portal, stored transcripts + audio, voice traces, rubric evaluations, agent versioning, native Twilio/Teams Phone, transfer to human |
 | **Choose it when** | You want managed capacity and Azure audio features now, in production | You need direct control of the deployed model and already have quota | You want the agent to be a governed Foundry asset (versions, evaluation, observability) and can accept preview |
 
-**Knowledge base:** all three answer from the same synthetic service-desk knowledge base (40 articles, 30 request records) in Azure AI Search through the shared `search_knowledge_base` tool — see [10 — Knowledge base](./docs/10-knowledge-base.md).
+**Knowledge base:** all three use the same **40 synthetic service-desk articles** through `search_knowledge_base`, backed by Azure AI Search or local `config\knowledge-base.json`. The **30 request records** remain in local `config\sample-data.json`, read by the separate `record_lookup` handler — they are not in the Search index. See [10 — Knowledge base](./docs/10-knowledge-base.md).
 
 Deeper material: [06 — Voice Live vs Realtime one-pager](./docs/06-comparison-one-pager.md) · [07 — Telephony, RAG, shared endpoint, and quota](./docs/07-telephony-and-shared-endpoint.md) · [09 — Environment variables](./docs/09-environment-variables.md).
 
 ### What you provision
+
+**Recommended: one shared Foundry resource, three ways to connect.** `scripts\demo.ps1` deploys the platform plus all three app tiers, loads Search, and optionally configures phone channels. The example rows below describe the **standalone alternative**; shared apps reuse the platform's AI resources instead of creating their own.
 
 | Example folder | What you provision | Auth role(s) assigned by Bicep |
 |---|---|---|
 | `examples\voice-live-api\` | Container Apps, ACR Basic, Log Analytics, user-assigned managed identity, Foundry resource (`AIServices`, S0, `disableLocalAuth`, project management) + a `voice-agents` **project** (no model deployment) | Cognitive Services User, Foundry User, AcrPull |
 | `examples\realtime-api\` | Same app stack; Foundry resource with project management + a `voice-agents` **project**, and the Global Standard realtime model deployment used from that project | Cognitive Services OpenAI User, AcrPull; deploying user also gets Foundry User |
 | `examples\foundry-voice-agent\` | Same app stack; Foundry resource with project management + a Foundry **project**; the agent is created by the `postprovision` hook | Cognitive Services User, Foundry User, AcrPull |
-| `platform\` (optional) | One Foundry endpoint + realtime deployment + voice-agent project, Azure AI Search, ACS — shared by all three | Developer: Foundry/OpenAI/Search roles |
+| `platform\` (recommended shared path) | One Foundry resource + realtime deployment + voice-agent project, separate Azure AI Search, ACS only when selected — shared by all three | Developer: Foundry/OpenAI/Search roles |
 
-Every example also creates a Foundry resource with a `voice-agents` project, so all three look the same in the Foundry portal (the Realtime deployment appears under its project; Voice Live and the voice agent use managed models). Every example deploys one Azure Container App replica with server-side admission control, exposes `/healthz`, `/api/info`, and `/ws`, and builds in ACR through `docker.remoteBuild: true`.
+In **standalone mode**, every example creates its own Foundry resource with a `voice-agents` project (the Realtime deployment appears under its project; Voice Live and the voice agent use managed models). In **shared mode**, all three reuse the platform's Foundry resource and project instead. Each example still deploys its own Azure Container App, ACR, Log Analytics workspace, and user-assigned managed identity. Each app runs one replica with its own `SessionHub` admission counter, exposes `/healthz`, `/api/info`, and `/ws`, and builds in ACR through `docker.remoteBuild: true`.
 
-**Phone calls, RAG, and one shared AI endpoint (opt-in).** The `platform\` azd project provisions one Foundry endpoint (with a realtime deployment and a voice-agent project), an Azure AI Search index, and Azure Communication Services. In shared mode all three examples use that single endpoint in one subscription, answer real phone calls over WebSocket through ACS or Twilio (including a PBX via Twilio SIP Domain), and ground answers with `search_knowledge_base` on every channel. See [docs\07-telephony-and-shared-endpoint.md](./docs/07-telephony-and-shared-endpoint.md).
+**Shared RAG, optional phone calls.** The wrapper always provisions Azure AI Search in `platform\` and loads the 40 articles; **do not deploy `knowledge\` separately for this path**. ACS is created only when `acs` is selected. Shared mode means one Foundry resource in one subscription, **not one literal WebSocket URL or one quota pool**: the APIs use distinct hosts/routes and limits. Each app can accept phone calls over WebSocket through ACS, Twilio (including a PBX via Twilio SIP Domain), or Asterisk directly via `chan_websocket`, and run `search_knowledge_base` on every channel. Browser and phone sessions share admission **within that app**, not globally across the three apps. See [docs\07-telephony-and-shared-endpoint.md](./docs/07-telephony-and-shared-endpoint.md).
 
 ### Key environment variables for reproducing
 
@@ -63,7 +65,7 @@ Every example also creates a Foundry resource with a `voice-agents` project, so 
 | `AZURE_LOCATION` | AI region (Foundry, models, voice agent, search). `centralus`, `eastus2`, or `swedencentral`. |
 | **`AZURE_APP_LOCATION`** | App region (Container Apps, ACR, Log Analytics). Set it when **Container Apps capacity is constrained** in the AI region; use the same value for all three examples. |
 | `REALTIME_DEPLOYMENT_CAPACITY` | Realtime deployment size in capacity units (default `10` = 100K TPM / 200 RPM for `gpt-realtime-2.1-mini`); checked before provisioning. |
-| `SHARED_RESOURCE_GROUP` / `SHARED_FOUNDRY_NAME` / `SHARED_FOUNDRY_PROJECT` | Put the examples on the one shared endpoint. |
+| `SHARED_RESOURCE_GROUP` / `SHARED_FOUNDRY_NAME` / `SHARED_FOUNDRY_PROJECT` | Reuse one shared Foundry resource/project through distinct API hosts/routes. |
 | `TELEPHONY_PROVIDERS` | Any of `acs`, `twilio`, `asterisk`. |
 | `AZURE_SEARCH_SERVICE_NAME` (+ `SHARED_RESOURCE_GROUP`) | Point an example at the synthetic knowledge base; set by `scripts\use-knowledge-base.ps1`. |
 
@@ -73,9 +75,54 @@ Full list with defaults and scope: [docs\09-environment-variables.md](./docs/09-
 
 ## 60-second quickstart
 
-> **Multi-tenant safety.** Never run a bare `az login` or rely on ambient `azd up`. Set the tenant and subscription explicitly for each example.
+### Recommended: shared deploy-all, including phone setup
 
-### Voice Live API example
+Commands take a minute to prepare, not to finish deploying. Install [prerequisites](./docs/02-prerequisites.md) first (PowerShell 7, Azure CLI, `azd`, Bicep, **Python 3.12+**, deployment/RBAC permissions, and realtime quota). From the repo root:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r scripts\requirements-agent.txt
+
+$Demo = @{
+	DemoName = "voice-demo"
+	TenantId = "<tenant-guid>"
+	SubscriptionId = "<subscription-guid>"
+}
+
+# Offline order/target preview: no CLI calls, cloud access, or file changes.
+./scripts/demo.ps1 -Action Up @Demo -AppLocation eastus2 -Telephony 'acs,twilio,asterisk' -WhatIf
+
+# Deploy platform, then Voice Live, Realtime, and Foundry voice agent.
+./scripts/demo.ps1 -Action Up @Demo -AppLocation eastus2 -Telephony 'acs,twilio,asterisk'
+```
+
+The wrapper uses `.venv/Scripts/python.exe` or `.venv/bin/python`, then falls back to `python`. On non-Windows hosts install with `.venv/bin/python -m pip install -r scripts/requirements-agent.txt`. These dependencies include `azure-identity` for Search loading and `azure-ai-projects` for agent creation.
+
+- Defaults: `-Location centralus` (allowed: `centralus`, `eastus2`, `swedencentral`), `-RealtimeCapacity 10`, and app region = AI region unless `-AppLocation` is set. The example places apps in `eastus2`. Keep existing model defaults for this first-time path.
+- Phone providers default to **none**; select only those you need. With `twilio`, a missing auth token is **securely prompted**, never supplied on the command line; existing secrets are retained. `-OverflowNumber +E164` optionally supplies an ACS/Twilio fallback.
+- `Up` signs in `az` and `azd` tenant-explicitly, provisions shared Search and selected ACS, loads 40 articles, wires each app, runs an ARM preview before each app's sequential `azd up`, creates the agent version through postprovision, checks `/healthz` and `/api/info` backend/provider configuration, and prints **three browser URLs**. `-WhatIf` above is an offline preview, **not** ARM what-if. `-SkipLogin` skips sign-in, not the Azure context check.
+- `asterisk` writes local configs for all three apps (extensions **7001/7002/7003**); copying them to the PBX is manual. Twilio prints all three **HTTP POST** voice webhooks; configure a number/SIP Domain in Twilio Console with **one target per number**.
+- ACS number acquisition is a **separate paid step after provisioning**. No incoming route is created without `-AcsPhoneNumber`. Once you have a number, configure the default target (or choose `voice-live-api` / `realtime-api`):
+
+```powershell
+./scripts/demo.ps1 -Action Phones @Demo -PhoneTarget foundry-voice-agent -AcsPhoneNumber '+<E164-number>'
+
+# Preview the four owned resource groups, then confirm their deletion.
+./scripts/demo.ps1 -Action Down @Demo -WhatIf
+./scripts/demo.ps1 -Action Down @Demo
+```
+
+`Phones` inherits providers from the manifest and reruns routing/config generation **without `azd up`**. ACS uses the stable `incoming-demo` Event Grid subscription on this demo's ACS resource; check for duplicate number filters on older manual routes, which are not removed. `Down` needs no regions/providers, deletes **agent → Realtime → Voice Live → platform**, and never targets `knowledge\` or unrelated environments. `-Force` opts into unattended confirmation; separate `-Purge` opts into irreversible `azd --purge` behavior, not a guarantee of Cognitive Services purging. External Twilio/PBX configuration, phone numbers, and billing still need operator cleanup.
+
+**Ownership and resume:** `DemoName` is 3–20 lowercase letters/digits/hyphens, starting with a letter and ending alphanumeric. The gitignored, nonsecret `.azure/demos/<DemoName>.json` records ownership alongside each project's `.azure/<env>/.env`: `<DemoName>-platform`, `-vl`, `-rt`, `-agent`. The wrapper refuses adoption of pre-existing environments/resource groups and tenant/location/provider drift. Resume with the **same Up arguments**; existing env values are retained, but naming settings are immutable. There is **no automatic rollback**: successful stages persist and cost money. Teardown keeps local state for retries/audit; use a **new DemoName** after full teardown. Health/info checks do not prove upstream audio or real calls work.
+
+Full checkpoints and phone handoff: [00 — Reproduce this demo](./docs/00-reproduce-this-demo.md) · [03 — Deployment contract](./docs/03-deployment.md#recommended-shared-deploy-all) · [07 — Phone setup](./docs/07-telephony-and-shared-endpoint.md#recommended-wrapper-phone-setup).
+
+### Alternative: standalone examples
+
+Use the following **instead of** shared deploy-all when you want separate Foundry resources. Never run a bare `az login` or rely on ambient `azd up`; set the tenant and subscription explicitly for each example. Install the local dependencies above before creating a voice agent.
+
+#### Voice Live API example
 
 ```powershell
 $TenantId = "<tenant-id>"
@@ -95,7 +142,7 @@ azd env set AZURE_LOCATION $Location
 azd up
 ```
 
-### Realtime API example
+#### Realtime API example
 
 Run the quota pre-flight in [02-prerequisites.md](./docs/02-prerequisites.md) first, then:
 
@@ -119,7 +166,7 @@ azd up
 
 After deployment, open `SERVICE_WEB_URI` from `azd env get-values` in a browser with microphone access.
 
-### Foundry voice agent example (preview)
+#### Foundry voice agent example (preview)
 
 Same steps in `examples\foundry-voice-agent`. `azd up` also creates the agent from `config\agent-profile.json` through the `postprovision` hook. See [its README](./examples/foundry-voice-agent/README.md).
 
@@ -136,7 +183,7 @@ These are the v1 baseline. Deviate only with an updated decision record and docs
 | 1 | Browser architecture | **Server-side WebSocket bridge for all three examples** | Keeps credentials, tools, instructions, and Entra tokens off the browser while preserving one comparison surface. |
 | 2 | Shared implementation | **Common `shared\static\` and `shared\voiceagent_core\`** | The client, metrics, tool execution, admission control, telephony adapters, and history trimming are identical across all three options. |
 | 3 | Identity | **Managed identity plus `disableLocalAuth: true`** | Demonstrates keyless production posture; API keys are local-only escape hatches when a separate key-enabled resource is used. |
-| 4 | Scale shape | **One replica plus app-level admission control** | `MAX_CONCURRENT_SESSIONS` is globally meaningful with one replica; caller overflow gets `busy` plus close code `1013` instead of silence. |
+| 4 | Scale shape | **One replica per app plus app-level admission control** | `MAX_CONCURRENT_SESSIONS` covers all channels on that app only. Browser overflow gets `busy` + `1013`; ACS/Twilio use configured overflow or reject/end the call; Asterisk sends `HANGUP` for dialplan fallback. No built-in human queue. |
 | 5 | Model defaults | **Voice Live `gpt-realtime-mini`; Realtime `gpt-realtime-2.1-mini`; voice agent `gpt-realtime-2.1-mini`** | Voice Live uses its GA Basic mini model by default; Realtime uses the GA mini with published pricing; the voice agent uses the managed 2.1-mini preview path to show agent-mode governance. |
 | 9 | Preview third option | **Foundry voice agent stores instructions/tools/voice; bridge owns audio and tool execution** | Keeps RAG, telephony, metrics, and the browser harness aligned while showing Foundry portal traces, stored artifacts, agent versions, and evaluations. |
 | 6 | API client | **Raw WebSockets instead of SDKs** | Makes the bridge hooks line-comparable. Use the Voice Live SDK or Realtime WebRTC path for production where appropriate. |
@@ -155,7 +202,7 @@ These are the v1 baseline. Deviate only with an updated decision record and docs
 ## When not to use this demo
 
 - You are building a production browser voice app and only need one API: evaluate WebRTC first for the Realtime API and the Voice Live SDK or accelerator patterns for Voice Live.
-- You need a full contact-center stack (IVR design, queues, agent desktops, CRM screen-pops): start from the appropriate voice accelerator. This repo's ACS/Twilio adapters are a minimal phone harness for comparing the three options on real calls, not a contact-center product.
+- You need a full contact-center stack (IVR design, queues, agent desktops, CRM screen-pops): start from the appropriate voice accelerator. This repo's ACS/Twilio/Asterisk adapters are a minimal phone harness for comparing the three options on real calls, not a contact-center product.
 - You need multi-region production resiliency, private networking, human handoff orchestration, or multi-replica load balancing out of the box: those are hardening items, not the v1 demo baseline.
 
 ---
@@ -176,22 +223,23 @@ All narrative documentation lives under `docs\`. The repo root holds only this R
 | [`docs\04-testing.md`](./docs/04-testing.md) | Functional, load, same-model bake-off, and regression test plan. |
 | [`docs\05-troubleshooting.md`](./docs/05-troubleshooting.md) | Symptom-first troubleshooting guide. |
 | [`docs\06-comparison-one-pager.md`](./docs/06-comparison-one-pager.md) | Detailed Voice Live vs. Realtime comparison and positioning one-pager. |
-| [`docs\07-telephony-and-shared-endpoint.md`](./docs/07-telephony-and-shared-endpoint.md) | Shared single-endpoint platform, ACS/Twilio/PBX phone channels, RAG, quota comparison, and the phone test plan. |
+| [`docs\07-telephony-and-shared-endpoint.md`](./docs/07-telephony-and-shared-endpoint.md) | Shared Foundry platform, ACS/Twilio/Asterisk/PBX phone channels, RAG, quota comparison, and the phone test plan. |
 | [`docs\10-knowledge-base.md`](./docs/10-knowledge-base.md) | Synthetic knowledge base (40 articles, 30 request records), `knowledge\` azd project for Azure AI Search, and wiring the examples to it. |
 | `knowledge\` | Infra-only azd project: Azure AI Search + synthetic `knowledge` index (postprovision loads it). |
 | [`docs\09-environment-variables.md`](./docs/09-environment-variables.md) | Every deploy-time and runtime variable, with defaults, scope, and capacity-constraint guidance (`AZURE_APP_LOCATION`). |
 | `examples\foundry-voice-agent\` | Foundry voice agent (preview) example; agent created by `scripts\create-voice-agent.py`. |
-| `platform\` | Infra-only azd project: one Foundry endpoint + realtime deployment, AI Search, ACS. |
-| `shared\voiceagent_core\telephony\` | ACS Call Automation and Twilio Media Streams adapters, audio conversion, webhook security. |
+| `platform\` | Infra-only azd project: one Foundry resource + realtime deployment + project, separate AI Search, optional ACS. |
+| `shared\voiceagent_core\telephony\` | ACS Call Automation, Twilio Media Streams, and Asterisk `chan_websocket` adapters, audio conversion, channel security. |
 | `shared\voiceagent_core\rag.py` | `knowledge_search` tool handler (Azure AI Search or local JSON). |
 | `config\knowledge-base.json` | Sample knowledge documents for the RAG tool and index loader. |
+| `scripts\demo.ps1` | Shared deploy-all (`Up`), phone routing/config handoff (`Phones`), and owned four-resource-group teardown (`Down`); offline `-WhatIf`. |
 | `scripts\enable-telephony.ps1` | Turn on phone channels (Asterisk, Twilio, ACS) for an example, generate their secrets, and write ready-to-copy Asterisk config after deploy. |
 | `scripts\probe-asterisk.py`, `scripts\probe-voice-agent.py` | Verify the Asterisk endpoint and the voice agent connection without a phone or browser. |
 | `scripts\use-shared-platform.ps1`, `scripts\configure-telephony.ps1`, `scripts\load-knowledge-index.py` | Wire an example to the platform, route phone numbers, load the index. |
 | [`docs\assets\voice-live-vs-realtime-api-architecture.drawio`](./docs/assets/voice-live-vs-realtime-api-architecture.drawio) | 4-page architecture source: solution architecture, three ways to connect, phone call flow, deployment and regions. |
 | `docs\assets\diagrams\*.png` | PNG exports embedded in the README and docs. Regenerate: `python scripts\build-diagrams.py` then `pwsh scripts\export-diagrams.ps1` (draw.io Desktop). |
 | [`docs\assets\comparison-one-pager.html`](./docs/assets/comparison-one-pager.html) | Browser-renderable comparison asset. |
-| [`docs\assets\comparison-one-pager.pdf`](./docs/assets/comparison-one-pager.pdf) | PDF export of the comparison one-pager. |
+| [`docs\assets\comparison-one-pager.pdf`](./docs/assets/comparison-one-pager.pdf) | One-page HTML export. Regenerate with `pwsh scripts\export-comparison.ps1` (Microsoft Edge); print-copy links are disabled to avoid embedding local paths. |
 | `config\agent-profile.json` | Domain retargeting surface: assistant name, instructions, greeting, tools, handlers, and conversation settings. |
 | `config\sample-data.json` | Example-domain data for the shipped record-lookup tool. |
 | `demo-ids.template.json` | Committed deployment-ID reference template; copy to `demo-ids.local.json` for populated local notes. |
@@ -248,4 +296,4 @@ The release history for this and later changes is in [CHANGELOG.md](CHANGELOG.md
 
 ---
 
-*Last updated: 2026-09-25*
+*Last updated: 2026-09-30 (local documentation revision)*

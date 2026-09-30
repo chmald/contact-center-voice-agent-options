@@ -1,6 +1,6 @@
 # 03 — Deployment
 
-Step-by-step `azd` deployment for the reusable browser voice-agent comparison repo. The three examples deploy side by side to Azure Container Apps and differ only in the upstream API they call:
+Recommended deployment: **`scripts\demo.ps1` provisions one shared Foundry resource, Search, and all three apps**, with optional phone-provider setup and scoped teardown. The three examples deploy side by side to Azure Container Apps and differ only in the upstream API they call:
 
 - `examples\voice-live-api\` → Azure AI Voice Live API.
 - `examples\realtime-api\` → Azure OpenAI GPT Realtime API GA.
@@ -12,9 +12,103 @@ Step-by-step `azd` deployment for the reusable browser voice-agent comparison re
 
 ---
 
-## Phase overview
+## Recommended shared deploy-all
 
 ![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
+
+**Diagram scope:** the image matches this recommended shared path. The platform creates the Foundry resource/project/realtime deployment and owns the realtime quota pre-flight (`platform/hooks/preprovision.ps1`); the Realtime app's hook skips that check when `SHARED_FOUNDRY_NAME` is set. Each app keeps its own app tier and admission counter. Shared is **one Foundry resource, not one literal URL or quota pool**. Search is always included by the wrapper; telephony is opt-in, with ACS created only if selected. **Do not deploy `knowledge\` separately.** The standalone phases later in this guide remain an alternative, not extra shared-deployment steps.
+
+### Prepare the local environment
+
+Install the tools, permissions, providers, and quota prerequisites in [02](02-prerequisites.md), including **PowerShell 7 and Python 3.12+**. Shared mode also uses `Microsoft.Search`; ACS setup uses `Microsoft.Communication` and `Microsoft.EventGrid`. From the repo root:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r scripts\requirements-agent.txt
+```
+
+The wrapper chooses `.venv/Scripts/python.exe` or `.venv/bin/python`, falling back to `python`. On non-Windows hosts install with `.venv/bin/python -m pip install -r scripts/requirements-agent.txt`. Install before actual `Up`: `azure-identity` supports Search loading and `azure-ai-projects` supports the voice-agent postprovision hook. The offline preview does not install anything.
+
+### Preview and deploy, including phone setup
+
+```powershell
+$Demo = @{
+  DemoName = "voice-demo"
+  TenantId = "<tenant-guid>"
+  SubscriptionId = "<subscription-guid>"
+}
+
+./scripts/demo.ps1 -Action Up @Demo -Location centralus -AppLocation eastus2 -RealtimeCapacity 10 -Telephony 'acs,twilio,asterisk' -WhatIf
+./scripts/demo.ps1 -Action Up @Demo -Location centralus -AppLocation eastus2 -RealtimeCapacity 10 -Telephony 'acs,twilio,asterisk'
+```
+
+Select only the providers you intend to configure; omitting `-Telephony` gives a browser-only deployment with Search. This wrapper is scoped to a **first-time shared deployment with the existing model defaults**, not adoption of an existing manually deployed platform or a model-migration workflow.
+
+| Parameter | Default / contract |
+|---|---|
+| `-Action` | `Up`, `Phones`, or `Down`. |
+| `-DemoName` | Required. 3–20 lowercase letters/digits/hyphens, starting with a letter and ending alphanumeric. Example: `voice-demo`. |
+| `-TenantId`, `-SubscriptionId` | Required explicit target GUIDs for all actions. |
+| `-Location` | `Up`: `centralus`; allowed AI regions: `centralus`, `eastus2`, `swedencentral`. |
+| `-AppLocation` | `Up`: same as AI region when omitted. Example override: `eastus2`, applied to all three app tiers. |
+| `-RealtimeCapacity` | Initial deployment: `10` capacity units; existing model defaults are retained. |
+| `-Telephony` | `Up`: none by default; comma-separated selection such as `'acs,twilio,asterisk'`. |
+| `-PhoneTarget` | `foundry-voice-agent`; alternatives: `voice-live-api`, `realtime-api`. Selects the ACS incoming-call target, not all three simultaneously. |
+| `-AcsPhoneNumber` | Optional E.164 number already acquired on this demo's ACS resource. Without it, ACS incoming-call routing is skipped. |
+| `-OverflowNumber` | `Up`: optional E.164 fallback for ACS/Twilio. Asterisk uses external dialplan fallback. |
+| `-SkipLogin` | Skip interactive `az`/`azd` login; still check `az` tenant/subscription context. |
+| `-WhatIf` | **Offline** order/target preview, with no CLI calls, cloud access, or file changes. It is **not ARM what-if**. |
+| `-Force` | `Down`: explicitly skip interactive confirmation for unattended teardown. |
+| `-Purge` | `Down`: separate irreversible opt-in to `azd --purge`; does not guarantee Cognitive Services account purging. |
+
+Actual `Up` performs these stages:
+
+1. Authenticate both `az` and `azd` **tenant-explicitly**, select/check the requested subscription, unless sign-in is skipped. Context is checked even with `-SkipLogin`.
+2. Create the owned platform environment and provision Foundry, the realtime deployment, the agent project, **Search always**, and **ACS only when `acs` is selected**. Load the **40 synthetic articles**; the 30 request records stay in local `sample-data.json`.
+3. Create and wire each named app environment using the existing shared-platform helper. Run an **ARM preview then `azd up` sequentially** for Voice Live → Realtime → voice agent. The voice-agent postprovision hook creates an agent version.
+4. Generate selected phone configs/routes, check `/healthz` and `/api/info` for the expected backend and provider configuration, and print **three browser URLs**. These checks do not establish upstream connectivity or real-call success; continue with [Phase 5](#phase-5--smoke-test) and [phone testing](07-telephony-and-shared-endpoint.md#test-plan).
+
+### Ownership, retries, and cost
+
+| Project | Environment | Owned resource group |
+|---|---|---|
+| `platform\` | `<DemoName>-platform` | `rg-<DemoName>-platform` |
+| `examples\voice-live-api\` | `<DemoName>-vl` | `rg-<DemoName>-vl` |
+| `examples\realtime-api\` | `<DemoName>-rt` | `rg-<DemoName>-rt` |
+| `examples\foundry-voice-agent\` | `<DemoName>-agent` | `rg-<DemoName>-agent` |
+
+The wrapper records **nonsecret context and ownership** in gitignored `.azure/demos/<DemoName>.json`, alongside each project's `.azure/<env>/.env`. Env files can contain secrets; never commit them. It refuses to adopt pre-existing environments/resource groups and refuses tenant, location, or provider drift on a rerun. Naming settings are immutable: do not rename the owned environments/resources or repurpose their manifest.
+
+If a stage fails, fix the cause and rerun **the same Up arguments**. Existing env values are used for resume, not overwritten with fresh default model settings. There is **no automatic rollback**: already successful stages remain deployed and **continue to cost money**. Inspect and repair only the intended environment; the wrapper is not a relocation or provider-migration command.
+
+### Complete phone setup without redeploying
+
+- **Twilio:** missing auth tokens are **securely prompted**, never passed as command-line literals; existing secrets are kept. All three **HTTP POST** voice webhooks are printed. Configure the Twilio number/SIP Domain in Twilio Console yourself and choose **one app per number**.
+- **Asterisk:** all three configs are generated under `examples/<example>/.azure/<env>/asterisk/`: extensions **7001 / 7002 / 7003** for Voice Live / Realtime / voice agent. Installing the PBX/provider and copying/merging these secret-bearing configs are manual steps.
+- **ACS:** provisioning does not buy a number. Acquire one separately on the demo's ACS resource (**paid step**), then run:
+
+```powershell
+./scripts/demo.ps1 -Action Phones @Demo -PhoneTarget foundry-voice-agent -AcsPhoneNumber '+<E164-number>'
+```
+
+`Phones` reads providers from the manifest and reruns phone routing/config generation **without `azd up`**; no need to redeclare regions or providers. It creates/updates the stable **`incoming-demo`** Event Grid subscription on this demo's ACS resource, targeting `-PhoneTarget`. One ACS number routes to one app. Old manual Event Grid subscriptions are **not automatically removed**; check for duplicate number filters before testing. Detailed external handoff: [07 — Phone setup](07-telephony-and-shared-endpoint.md#recommended-wrapper-phone-setup).
+
+### Shared teardown
+
+```powershell
+./scripts/demo.ps1 -Action Down @Demo -WhatIf
+./scripts/demo.ps1 -Action Down @Demo
+```
+
+`Down` uses the same demo name/tenant/subscription, with no need to repeat region/provider arguments. It displays the **four scoped resource groups**, requests confirmation, then deletes **agent → Realtime → Voice Live → platform**. Add `-Force` only to opt into unattended confirmation; `-Purge` is a distinct opt-in for irreversible `azd --purge` behavior, **not a guarantee of Cognitive Services purging**. `-WhatIf` changes nothing and does not call ARM.
+
+The wrapper keeps local manifest/env files for retries/audit; use a **new DemoName after full teardown**. It never removes `knowledge\` or unrelated environments. External Twilio/PBX configuration, phone numbers, and billing remain operator cleanup tasks. Use [Phase 8](#phase-8--tear-down) only for independently deployed standalone examples.
+
+---
+
+## Standalone alternative — phase overview
+
+Follow Phases 0–4 **instead of** shared deploy-all when each example should own a separate Foundry resource/project. Install the local dependencies above before running the voice-agent hook. The optional add-ons below apply to this manual path; shared users already have Search and their selected phone providers.
 
 | Phase | What you do | Typical time | Validation at end |
 |---|---|---:|---|
@@ -27,13 +121,13 @@ Step-by-step `azd` deployment for the reusable browser voice-agent comparison re
 | 5 | Smoke test all three deployed apps | 10 min | Browser, tool call, health, info, and metrics work |
 | 6 | Run any example locally against deployed resources | 5-10 min | Local `uvicorn` app connects with your Azure identity |
 | 7 | Change model, voice, capacity, agent profile, or concurrency and redeploy | 5-15 min | New values appear in `/api/info`, deployment list, or a new agent version |
-| 8 | Tear down cleanly | 5-10 min | Resource group is removed and soft-deleted AI account is purged |
+| 8 | Tear down the selected standalone environments | 5-10 min | Owned resource groups removed; soft-deleted resources reviewed separately |
 
 ---
 
 ## What azd reads and writes
 
-`azd` reads each example's `infra\main.parameters.json`, maps environment values to Bicep parameters, then writes deployment outputs to `.azure\<env>\.env`. Use `azd env get-values` to inspect or export those values.
+`azd` reads each example's `infra\main.parameters.json`, maps environment values to Bicep parameters, then writes deployment outputs to `.azure\<env>\.env`. Use `azd env get-values` to inspect or export those values, taking care not to share secrets. The contracts below also support manual standalone deployment; in shared mode, resource/project/deployment ownership stays with `platform\` and the wrapper supplies the shared values.
 
 ### Voice Live API IaC contract
 
@@ -132,6 +226,8 @@ Container App environment variables set by Bicep are exactly: `VOICE_AGENT_ENDPO
 ---
 
 ## Phase 0 — Authenticate to the right tenant
+
+**Standalone/manual path only.** Shared deploy-all handles this authentication gate itself; do not create a second set of environments by repeating Phases 0–4 after `Up`.
 
 > **Do this first every time.** This repo is intended for multi-tenant work. Never run a bare `az login` or trust ambient `azd` state before token acquisition or resource writes.
 
@@ -363,19 +459,18 @@ curl.exe "$ServiceWebUri/api/info"
 
 ## Optional add-ons: knowledge base and phone channels
 
-Every example deploys browser-only with the local knowledge file by default. Add any of these before
-(or after) `azd up`; each is a few `azd env` values plus a re-deploy.
+**Standalone/manual alternative only.** Independently deployed examples use the browser and local knowledge file by default. Shared `demo.ps1 Up` already deploys Search, loads the articles, and enables the selected phone channels: **do not deploy `knowledge\` again**. Use `demo.ps1 -Action Phones` for the shared routing/config handoff. For standalone examples, add any of these before (or after) `azd up`; each is a few `azd env` values plus a re-deploy.
 
 | Add-on | What you run | Extra settings it creates | Details |
 |---|---|---|---|
 | Azure AI Search knowledge base (synthetic, 40 articles) | `cd knowledge; azd up`, then `./scripts/use-knowledge-base.ps1 -Example <x> -KnowledgeEnv <kb-env>` | `SHARED_RESOURCE_GROUP`, `AZURE_SEARCH_SERVICE_NAME`, `AZURE_SEARCH_INDEX`, `AZURE_SEARCH_SEMANTIC_CONFIG` | [10](10-knowledge-base.md) |
 | **Asterisk** over WSS (`chan_websocket`) | `./scripts/enable-telephony.ps1 -Example <x> -Providers asterisk` | `TELEPHONY_PROVIDERS`, `TELEPHONY_WEBHOOK_SECRET`, `ASTERISK_WEBSOCKET_SECRET` (generated) | below, [07 §7](07-telephony-and-shared-endpoint.md#7-connect-asterisk-directly-over-wss-no-twilio) |
-| Twilio number or SIP Domain | `./scripts/enable-telephony.ps1 -Example <x> -Providers twilio -TwilioAuthToken <token>` | `TELEPHONY_PROVIDERS`, `TELEPHONY_WEBHOOK_SECRET` (generated), `TWILIO_AUTH_TOKEN` (yours) | [07 §6](07-telephony-and-shared-endpoint.md#6-route-twilio-numbers-and-pbx-calls) |
+| Twilio number or SIP Domain | `./scripts/enable-telephony.ps1 -Example <x> -Providers twilio` with an existing token, or a masked interactive token variable as in [07](07-telephony-and-shared-endpoint.md#4-point-each-app-at-the-platform-and-deploy) | `TELEPHONY_PROVIDERS`, `TELEPHONY_WEBHOOK_SECRET` (generated), `TWILIO_AUTH_TOKEN` (yours) | [07 §6](07-telephony-and-shared-endpoint.md#6-route-twilio-numbers-and-pbx-calls) |
 | Azure Communication Services number | Shared platform: `./scripts/use-shared-platform.ps1 -Example <x> -PlatformEnv <p> -Telephony acs` | `TELEPHONY_PROVIDERS`, `TELEPHONY_WEBHOOK_SECRET`, `ACS_EVENTGRID_SECRET` (generated), `ACS_RESOURCE_NAME` | [07 §5](07-telephony-and-shared-endpoint.md#5-route-acs-numbers-event-grid) |
 | Container Apps in another region | `azd env set AZURE_APP_LOCATION <region>` | — | [07](07-telephony-and-shared-endpoint.md#container-apps-in-a-different-region-than-the-ai-endpoint) |
 
 Channels can be combined: `-Providers asterisk,twilio`. Browser sessions and every phone channel share
-one admission cap (`MAX_CONCURRENT_SESSIONS`).
+one admission cap (`MAX_CONCURRENT_SESSIONS`) **within each app**, not across the three apps.
 
 ### Deploy with the Asterisk channel
 
@@ -461,6 +556,8 @@ Expected results:
 - `/healthz` returns `{"status":"ok"}`.
 - `/api/info` returns the API name, model, voice, active sessions, and max sessions.
 
+These GETs validate the app and its reported configuration, **not upstream audio or real phone calls**. For shared deployment, select the matching `<DemoName>-vl`, `-rt`, or `-agent` environment before reading its URL; also check Search and phone providers in `/api/info`.
+
 Open the browser:
 
 ```powershell
@@ -534,6 +631,8 @@ If local upstream calls return 401 or 403 immediately after provisioning, wait 5
 ---
 
 ## Phase 7 — Change model, voice, capacity, or concurrency and redeploy
+
+These are advanced manual operations, beyond the wrapper's first-time default-model scope. In **shared mode**, the realtime model and capacity belong to the **platform environment**, not the Realtime app environment shown below; update the platform and rewire affected apps. Never change wrapper-owned naming, tenant, location, or provider settings to resume a failed run.
 
 Use `azd provision` when you change a Bicep parameter or Container App environment value. Use `azd deploy` when only application code, static assets, or Python files changed. Use `azd up` when you want both in sequence.
 
@@ -610,20 +709,23 @@ az cognitiveservices account deployment list -n $Foundry -g $Rg -o table
 
 ## Phase 8 — Tear down
 
-Run teardown from each example folder you deployed:
+**Standalone alternative only.** Shared deployments use [the wrapper's scoped teardown](#shared-teardown), which also removes the platform last. For independently deployed examples, select the intended environment in each folder before deletion:
 
 ```powershell
 cd <repo-root>\examples\voice-live-api
-azd down --purge
+azd env select <voice-live-env-name>
+azd down
 
 cd <repo-root>\examples\realtime-api
-azd down --purge
+azd env select <realtime-env-name>
+azd down
 
 cd <repo-root>\examples\foundry-voice-agent
-azd down --purge
+azd env select <voice-agent-env-name>
+azd down
 ```
 
-Use `--purge` because soft-deleted Foundry and Cognitive Services accounts can retain the account name and quota association. Without purge, a later rebuild can fail with a name conflict even after the resource group appears deleted.
+Add `--purge` only as an explicit, irreversible opt-in. Do not assume it guarantees Cognitive Services account purging; review retained soft-deleted accounts separately. If you also created a standalone `knowledge\` environment, select and tear down that specific environment yourself. External phone-provider/PBX settings, phone numbers, and billing also need operator cleanup.
 
 If you need to inspect or purge a leftover account manually:
 
@@ -634,7 +736,7 @@ az cognitiveservices account purge --name <account-name> --resource-group <delet
 
 ### Phase 8 validation
 
-- [ ] `azd down --purge` completed for every environment you created.
+- [ ] `azd down` completed for each intended standalone environment; any purge was explicitly requested.
 - [ ] The resource group no longer appears in the portal or `az group list`.
 - [ ] `az cognitiveservices account list-deleted -o table` does not show a leftover account name you plan to reuse.
 
@@ -651,4 +753,4 @@ az cognitiveservices account purge --name <account-name> --resource-group <delet
 
 ---
 
-*Last updated: 2026-09-29*
+*Last updated: 2026-09-30 (local documentation revision)*

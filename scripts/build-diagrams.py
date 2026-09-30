@@ -102,7 +102,7 @@ class Page:
 
     def edge(self, src: str, dst: str, color: str, label: str = "", dashed: bool = False, exit_: str = "", entry: str = "",
              pos: float = 0.0, both: bool = False, straight: bool = False,
-             points: list[tuple[int, int]] | None = None) -> str:
+             points: list[tuple[int, int]] | None = None, offset: tuple[int, int] = (0, 0)) -> str:
         cid = self._id("e")
         style = (
             ("" if straight else "edgeStyle=orthogonalEdgeStyle;") + f"rounded=1;html=1;endArrow=classic;strokeColor={color};strokeWidth=2;"
@@ -118,7 +118,7 @@ class Page:
             self.cells.append(
                 f'<mxCell id="{cid}l" value="{a(escape(label))}" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];'
                 f'fontColor={color};fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;" connectable="0" vertex="1" parent="{cid}">'
-                f'<mxGeometry x="{pos}" y="0" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry></mxCell>'
+                f'<mxGeometry x="{pos}" y="0" relative="1" as="geometry"><mxPoint x="{offset[0]}" y="{offset[1]}" as="offset" /></mxGeometry></mxCell>'
             )
         return cid
 
@@ -136,8 +136,8 @@ R = "exitX=1;exitY=0.5;entryX=0;entryY=0.5;"
 
 def page_architecture() -> Page:
     p = Page("arch", "1 - Solution architecture", 1900, 1060)
-    p.title("Voice agent comparison: three upstreams, one bridge, one AI endpoint",
-            "Browser and phone callers reach the same FastAPI WebSocket bridge. Each example app differs only in the upstream it talks to.")
+    p.title("Voice agent comparison: three apps, shared bridge code, one Foundry resource",
+            "Shared-platform mode shown. Each app uses a distinct upstream route; browser and phone channels reuse the same bridge implementation.")
 
     p.group("👥 Callers", 40, 110, 250, 640, USER)
     browser = p.tile("🎙️ Browser", "Microphone · PCM16 24 kHz", 60, 160, 210, 70, USER)
@@ -150,12 +150,12 @@ def page_architecture() -> Page:
     eg = p.tile("Event Grid", "IncomingCall → /telephony/acs/events", 350, 380, 250, 70, BLUE, "eg")
     twilio = p.tile("Twilio", "Number or SIP Domain · Media Streams", 350, 580, 250, 80, BLUE)
 
-    p.group("⚡ App tier · Azure Container Apps · region AZURE_APP_LOCATION", 660, 110, 520, 830, BLUE)
+    p.group("⚡ App tier · each app in AZURE_APP_LOCATION", 660, 110, 520, 830, BLUE)
     core = p.note(
-        "<b>Shared core (identical in every app)</b><br>"
+        "<b>Shared core code (runs separately in each app)</b><br>"
         "• /ws browser · /telephony/acs · /telephony/twilio · /telephony/asterisk<br>"
         "• Audio adapters: PCM 24 kHz (ACS, Asterisk slin24) · μ-law 8 kHz ↔ 24 kHz (Twilio)<br>"
-        "• SessionHub: one admission cap (MAX_CONCURRENT_SESSIONS), overflow → human queue<br>"
+        "• SessionHub: MAX_CONCURRENT_SESSIONS per app, shared across its channels<br>"
         "• RealtimeStyleBridge: barge-in, tool calls, history trim, metrics<br>"
         "• Tools: search_knowledge_base (RAG) · record lookup · time",
         690, 160, 460, 150, BLUE, "#EFF6FC")
@@ -165,19 +165,23 @@ def page_architecture() -> Page:
     p.tile("Container Registry", "remote build", 690, 660, 220, 60, BLUE, "acr")
     p.tile("Log Analytics", "voice_turn · channel", 930, 660, 220, 60, BLUE, "log")
     p.tile("Managed identity", "Entra ID · no keys", 690, 740, 220, 60, BLUE, "mi")
-    p.note("One replica per app so the admission cap is global.<br>Browser tabs and phone calls share the same counter.", 930, 740, 220, 80)
+    p.note("One replica per app; one counter for its browser + phone sessions.<br>ACR, logs and identity are also per app.", 930, 740, 220, 80)
+    rag = p.tile("Shared RAG tool · executed in each app", "search_knowledge_base · managed identity", 690, 840, 460, 70, TEAL)
 
-    p.group("🧠 AI tier · ONE Foundry resource · region AZURE_LOCATION (e.g. centralus)", 1220, 110, 640, 830, AI)
-    vl = p.tile("Voice Live API · model mode", "Managed gpt-realtime-mini · no deployment", 1250, 340, 580, 80, AI, "speech")
-    rt = p.tile("Azure OpenAI Realtime API", "Global Standard deployment gpt-realtime-2.1-mini", 1250, 440, 580, 80, AI, "openai")
-    va = p.tile("Foundry voice agent (project route)", "Project 'voice-agents' · versioned agent · managed gpt-realtime-2.1-mini", 1250, 540, 580, 80, WARN, "foundry", WARN_FILL, True)
-    p.tile("Azure AI Search", "index 'knowledge' · keyword + semantic ranker · called by the shared RAG tool (managed identity)", 1250, 680, 580, 70, AI, "search")
+    p.group("🧠 AI resources · AZURE_LOCATION (e.g. centralus)", 1220, 110, 640, 830, AI)
+    p.group("ONE Foundry resource · three API routes", 1240, 150, 600, 510, AI, "#FAF8FF", False)
+    vl = p.tile("Voice Live API · model mode", "Managed gpt-realtime-mini · no deployment", 1260, 340, 560, 80, AI, "speech")
+    rt = p.tile("Azure OpenAI Realtime API", "Global Standard deployment gpt-realtime-2.1-mini", 1260, 440, 560, 80, AI, "openai")
+    va = p.tile("Foundry voice agent (project route)", "Project 'voice-agents' · versioned agent · managed gpt-realtime-2.1-mini", 1260, 540, 560, 80, WARN, "foundry", WARN_FILL, True)
+    search = p.tile("Azure AI Search · separate resource", "index 'knowledge' · 40 articles · keyword + semantic ranker", 1260, 840, 560, 70, TEAL, "search")
+    p.note("<b>Shared data, app-side tools</b><br>RAG can also use local knowledge-base.json when Search is not configured.<br>Record lookup reads 30 local sample-data.json records, not the Search index.",
+           1260, 725, 560, 85, TEAL, "#F0FAFA", "middle")
     p.note(
         "<b>Capacity</b><br>"
         "• Voice Live + voice agent: per-resource Voice Live limits (100 new connections/min, ≤120K TPM) — <b>shared</b> by both<br>"
         "• Realtime: deployment capacity units (1 = 10K TPM + 20 RPM; often 10 = 100K TPM) — separate pool<br>"
         "• Voice agent is <b>public preview</b>",
-        1250, 160, 580, 130, WARN, WARN_FILL, "middle")
+        1260, 195, 560, 120, WARN, WARN_FILL, "middle")
 
     p.edge(browser, core, USER, "WSS /ws", exit_="exitX=1;exitY=0.5;", entry="entryX=0;entryY=0.2;", pos=-0.5)
     p.edge(pstn, acs, USER, "", exit_=R.split("entry")[0], entry="entryX=0;entryY=0.3;")
@@ -192,12 +196,16 @@ def page_architecture() -> Page:
     p.edge(vl_app, vl, AI, "model", exit_=R, entry="", pos=0.0)
     p.edge(rt_app, rt, AI, "deployment", exit_=R, entry="", pos=0.0)
     p.edge(va_app, va, WARN, "project route", exit_=R, entry="", dashed=True, pos=0.0)
+    p.edge(rag, search, TEAL, "HTTPS query", exit_=R, both=True, offset=(0, -18))
+    p.note("<b>When an app is full:</b> browser → busy + close 1013; ACS/Twilio → configured overflow number or busy/reject; Asterisk → HANGUP (dialplan handles fallback). No built-in human queue.<br>"
+           "<b>Standalone mode:</b> each example has its own Foundry resource + project. Shared mode pools Voice Live service limits, not the three apps' admission counters. Confirm effective service limits before sizing.",
+           40, 970, 1820, 60, GREY, "#F3F2F1", "middle")
     return p
 
 
 def page_three_ways() -> Page:
     p = Page("ways", "2 - Three ways to connect", 1800, 900)
-    p.title("Three ways to connect the same bridge", "What the app sends, what it connects to, where the model lives, and what limits capacity.")
+    p.title("Three ways to connect the shared bridge implementation", "What each app sends, its upstream route, where the model lives, and what limits capacity. Endpoint lines wrap for readability.")
     headers = ["What the bridge sends", "WebSocket endpoint", "Model / agent", "What limits capacity"]
     xs = [300, 660, 1020, 1400]
     for x, h in zip(xs, headers):
@@ -205,118 +213,133 @@ def page_three_ways() -> Page:
     rows = [
         ("Voice Live API", "GA", AI, "#ffffff", False,
          "session.update with instructions, tools, voice, VAD, noise, echo, transcription (flat schema)",
-         "wss://&lt;foundry&gt;.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&amp;model=gpt-realtime-mini",
+         "wss://&lt;foundry&gt;.services.ai.azure.com<br>/voice-live/realtime<br>?api-version=2026-07-15<br>&amp;model=gpt-realtime-mini",
          ("Managed model", "No deployment · service-managed lifecycle", "speech"),
          ("Per-resource Voice Live limits", "100 new connections/min · ≤120K TPM · 60-min sessions<br>Raise via support request · fails under load", WARN_FILL, WARN)),
         ("Realtime API", "GA", BLUE, "#ffffff", False,
          "session.update with instructions, tools, voice, semantic VAD, noise reduction (GA nested schema)",
-         "wss://&lt;foundry&gt;.openai.azure.com/openai/v1/realtime?model=&lt;deployment&gt;",
+         "wss://&lt;foundry&gt;.openai.azure.com<br>/openai/v1/realtime<br>?model=&lt;deployment&gt;",
          ("Your Global Standard deployment", "gpt-realtime-2.1-mini · you manage version + upgrade", "openai"),
          ("Deployment capacity units", "REALTIME_DEPLOYMENT_CAPACITY (default 10 = 100K TPM / 200 RPM)<br>Pooled per subscription + model version · fails at deploy AND under load", BAD_FILL, USER)),
         ("Foundry voice agent", "PREVIEW", WARN, WARN_FILL, True,
          "No session.update and no greeting — the agent owns instructions, tools, voice, greeting, VAD, noise, echo, transcription; bridge streams audio and runs tools",
-         "wss://&lt;foundry&gt;.services.ai.azure.com/api/projects/&lt;p&gt;/agents/&lt;a&gt;/endpoint/protocols/voice?api-version=2025-11-15-preview  + Foundry-Features: VoiceAgents=V1Preview",
+         "wss://&lt;foundry&gt;.services.ai.azure.com<br>/api/projects/&lt;p&gt;/agents/&lt;a&gt;<br>/endpoint/protocols/voice<br>?api-version=2025-11-15-preview<br><br>Header: Foundry-Features:<br>VoiceAgents=V1Preview",
          ("Versioned agent in a Foundry project", "Managed gpt-realtime-2.1-mini · traces, stored audio, evaluations", "foundry"),
          ("Same per-resource Voice Live limits", "Shared with the Voice Live app on the same resource<br>Agent Service: 60-min sessions · Entra ID only", WARN_FILL, WARN)),
     ]
     y = 160
     for name, status, color, fill, dashed, sends, url, model, limit in rows:
         p.group("", 40, y - 10, 1720, 200, color, fill if dashed else "none", dashed)
-        head = p.tile(name, status, 60, y + 40, 200, 100, color, None, fill, dashed)
-        s = p.note(sends, xs[0], y + 40, 320, 100, color, "#ffffff", "middle")
-        u = p.note(f"<font face='Consolas'>{url}</font>", xs[1], y + 40, 320, 100, color, "#ffffff", "middle")
-        m = p.tile(model[0], model[1], xs[2], y + 40, 340, 100, color, model[2], "#ffffff", dashed)
-        lim = p.note(f"<b>{limit[0]}</b><br>{limit[1]}", xs[3], y + 30, 340, 120, limit[3], limit[2], "middle")
+        head = p.tile(name, status, 60, y + 45, 200, 100, color, None, fill, dashed)
+        s = p.note(sends, xs[0], y + 35, 320, 120, color, "#ffffff", "middle")
+        u = p.note(f"<font face='Consolas'>{url}</font>", xs[1], y + 15, 320, 160, color, "#ffffff", "middle")
+        m = p.tile(model[0], model[1], xs[2], y + 45, 340, 100, color, model[2], "#ffffff", dashed)
+        lim = p.note(f"<b>{limit[0]}</b><br>{limit[1]}", xs[3], y + 35, 340, 120, limit[3], limit[2], "middle")
         p.edge(head, s, color, exit_=R)
         p.edge(s, u, color, exit_=R)
         p.edge(u, m, color, exit_=R)
         p.edge(m, lim, color, exit_=R, dashed=True)
         y += 220
-    p.note("<b>Same in all three:</b> browser UI · ACS, Twilio, and Asterisk (chan_websocket) adapters · admission control · search_knowledge_base RAG tool (function tools are executed by the bridge; for the voice agent they are declared on the agent) · metrics · load probe. "
+    p.note("<b>Same code in all three:</b> browser UI · ACS, Twilio, and Asterisk (chan_websocket) adapters · per-app admission control · search_knowledge_base RAG tool (function tools are executed by the bridge; for the voice agent they are declared on the agent) · metrics · load probe. "
            "The voice agent is created from config/agent-profile.json by scripts/create-voice-agent.py (azd postprovision hook).",
            40, 820, 1720, 60, GREY, "#F3F2F1", "middle")
     return p
 
 
 def page_call_flow() -> Page:
-    p = Page("call", "3 - Phone call flow", 1800, 780)
+    p = Page("call", "3 - Phone call flow", 1800, 820)
     p.title("How a phone call reaches the agent (ACS shown; Twilio and Asterisk paths below)",
-            "Slots are reserved when the call arrives and claimed when media connects, so extra callers get the overflow number instead of dead air.")
-    caller = p.tile("📞 Caller", "dials the ACS number", 40, 120, 200, 80, USER)
-    acs = p.tile("Azure Communication Services", "Call Automation", 330, 120, 260, 80, BLUE, "acs")
-    eg = p.tile("Event Grid", "IncomingCall event", 330, 320, 260, 70, BLUE, "eg")
-    hook = p.tile("App · /telephony/acs/events", "checks ACS_EVENTGRID_SECRET", 680, 320, 280, 70, BLUE, "aca")
-    hub = p.tile("SessionHub", "reserve slot (30 s) · claim on media", 680, 480, 280, 70, BLUE)
-    busy = p.tile("🔁 Overflow / busy", "redirect to TELEPHONY_OVERFLOW_NUMBER or reject", 330, 480, 260, 80, USER, None, BAD_FILL)
-    media = p.tile("App · /telephony/acs/media", "per-call HMAC token · pcm24KMono", 680, 120, 280, 80, BLUE, "aca")
-    bridge = p.tile("Bridge", "audio in/out · barge-in · tool calls", 1060, 120, 260, 80, BLUE)
-    up = p.tile("Upstream", "Voice Live · Realtime · voice agent", 1420, 120, 320, 80, AI, "speech")
-    rag = p.tile("search_knowledge_base", "Azure AI Search (managed identity)", 1060, 320, 260, 80, AI, "search")
+            "ACS/Twilio reserve on the incoming webhook and claim on media; Asterisk admits on MEDIA_START. All channels share their app's SessionHub.")
+    caller = p.tile("📞 Caller", "dials the ACS number", 40, 140, 200, 90, USER)
+    acs = p.tile("Azure Communication Services", "Call Automation", 320, 140, 260, 90, BLUE, "acs")
+    eg = p.tile("Event Grid", "IncomingCall event", 320, 350, 260, 80, BLUE, "eg")
+    hook = p.tile("ACS event webhook", "/telephony/acs/events · validates shared secret", 720, 350, 300, 80, BLUE, "aca")
+    hub = p.tile("SessionHub · per app", "reserve slot (30 s) · claim on media", 720, 520, 300, 80, BLUE)
+    busy = p.tile("🔁 Overflow / busy", "ACS redirects to configured number or rejects", 320, 520, 260, 80, USER, None, BAD_FILL)
+    media = p.tile("ACS media endpoint", "/telephony/acs/media · per-call HMAC token", 720, 140, 300, 90, BLUE, "aca")
+    bridge = p.tile("Bridge", "audio · barge-in · tool execution", 1180, 140, 220, 90, BLUE)
+    up = p.tile("Upstream", "Voice Live / Realtime / voice agent", 1530, 140, 230, 90, AI, "speech")
+    rag = p.tile("search_knowledge_base · executed by the bridge", "Azure AI Search (managed identity), or local JSON", 1180, 350, 580, 80, TEAL, "search")
 
-    p.edge(caller, acs, USER, "1 call", exit_=R)
-    p.edge(acs, eg, BLUE, "2 IncomingCall", exit_="exitX=0.5;exitY=1;", entry="entryX=0.5;entryY=0;")
-    p.edge(eg, hook, BLUE, "3 webhook", exit_=R)
-    p.edge(hook, hub, BLUE, "4 reserve", exit_="exitX=0.5;exitY=1;", entry="entryX=0.5;entryY=0;")
+    p.edge(caller, acs, USER, "1 · Call", exit_=R, offset=(0, -18))
+    p.edge(acs, eg, BLUE, "2 · IncomingCall", exit_="exitX=0.5;exitY=1;", entry="entryX=0.5;entryY=0;")
+    p.edge(eg, hook, BLUE, "3 · Webhook", exit_=R)
+    p.edge(hook, hub, BLUE, "4 · Reserve", exit_="exitX=0.5;exitY=1;", entry="entryX=0.5;entryY=0;")
     p.edge(hub, busy, USER, "no slot", exit_="exitX=0;exitY=0.5;", entry="entryX=1;entryY=0.5;", dashed=True)
-    p.edge(hook, acs, BLUE, "5 answer_call (bidirectional media)", exit_="exitX=0.5;exitY=0;", entry="entryX=1;entryY=0.8;", dashed=True, pos=0.2)
-    p.edge(acs, media, BLUE, "6 media WebSocket", exit_="exitX=1;exitY=0.3;", entry="entryX=0;entryY=0.3;", both=True)
-    p.edge(media, bridge, BLUE, "7 AudioData", exit_=R, both=True)
-    p.edge(bridge, up, AI, "8 input_audio_buffer.append", exit_=R, both=True, pos=0.1)
-    p.edge(bridge, rag, AI, "9 function call → RAG", exit_="exitX=0.5;exitY=1;", entry="entryX=0.5;entryY=0;")
+    p.edge(hook, acs, BLUE, "5 · Answer call + start media", exit_="exitX=0.5;exitY=0;", entry="entryX=1;entryY=0.8;", dashed=True,
+              points=[(870, 280), (635, 280), (635, 212)], straight=True, offset=(0, -16))
+    p.edge(acs, media, BLUE, "6 · WSS media", exit_=R, both=True, offset=(0, -18))
+    p.edge(media, hub, BLUE, "claim slot", exit_="exitX=1;exitY=0.8;", entry="entryX=1;entryY=0.5;", dashed=True,
+              points=[(1090, 212), (1090, 560)], straight=True, offset=(35, 0))
+    p.edge(media, bridge, BLUE, "7 · PCM24 audio", exit_=R, both=True, offset=(0, -18))
+    p.edge(bridge, up, AI, "8 · Audio + events", exit_=R, both=True, offset=(0, -18))
+    p.edge(bridge, rag, TEAL, "9 · Tool call / result", exit_="exitX=0.5;exitY=1;", entry="entryX=0.19;entryY=0;", both=True)
+    p.note("<b>Upstream direction</b><br>In: input_audio_buffer.append<br>Out: audio deltas + events", 1470, 250, 290, 75, AI, "#F4EFFA", "middle")
     p.note(
         "<b>10 · Agent speaks</b> — upstream audio → bridge → <i>AudioData</i> to ACS → caller.<br>"
         "<b>11 · Caller interrupts</b> — upstream speech_started → bridge sends <i>StopAudio</i> (ACS), <i>clear</i> (Twilio), or <i>FLUSH_MEDIA</i> (Asterisk) so queued speech stops.<br>"
         "<b>12 · Hang-up</b> — media socket closes → bridge closes upstream → slot released → voice_session_end logged with channel.",
-        1060, 480, 680, 90, BLUE, "#EFF6FC", "middle")
+        1180, 480, 580, 140, BLUE, "#EFF6FC", "middle")
     p.note(
         "<b>Twilio path</b>: Twilio number or SIP Domain → signed POST /telephony/twilio/voice (reserve slot) → "
         "TwiML &lt;Connect&gt;&lt;Stream&gt; with token → /telephony/twilio/media (claim) → μ-law 8 kHz ↔ PCM16 24 kHz → same bridge.<br>"
-        "<b>Asterisk path</b>: Dial(WebSocket/voice_agent/c(slin24)f(json)) → Asterisk connects to wss://&lt;app&gt;/telephony/asterisk/media "
-        "(Basic auth = ASTERISK_WEBSOCKET_SECRET) → MEDIA_START → slin24 frames = bridge format (no resampling) → barge-in FLUSH_MEDIA; busy → HANGUP.",
-        40, 620, 1700, 50, GREY, "#F3F2F1", "middle")
+        "<b>Full:</b> busy message, with a Dial fallback when an overflow number is configured.",
+        40, 660, 840, 100, GREY, "#F3F2F1", "middle")
+    p.note(
+        "<b>Asterisk path</b>: Dial(WebSocket/voice_agent/c(slin24)f(json)) → WSS /telephony/asterisk/media "
+        "(Basic auth: ASTERISK_WEBSOCKET_SECRET) → MEDIA_START → admission → slin24 frames = bridge format (no resampling).<br>"
+        "<b>Full:</b> HANGUP; configure the dialplan fallback. Barge-in uses FLUSH_MEDIA.",
+        920, 660, 840, 100, GREY, "#F3F2F1", "middle")
     return p
 
 
 def page_deployment() -> Page:
-    p = Page("deploy", "4 - Deployment and regions", 1800, 980)
-    p.title("What gets deployed where (shared single-endpoint mode)",
+    p = Page("deploy", "4 - Deployment and regions", 1800, 1120)
+    p.title("What gets deployed where (shared-resource mode)",
             "One subscription. AI resources in AZURE_LOCATION; each app tier in AZURE_APP_LOCATION (set it when Container Apps capacity is constrained).")
-    p.group("Subscription (AZURE_SUBSCRIPTION_ID)", 40, 110, 1720, 830, GREY, "none", False)
-    p.group("platform/ · rg-<platform-env> · AZURE_LOCATION (centralus)", 70, 150, 620, 560, AI)
-    p.tile("Foundry resource (AIServices)", "disableLocalAuth · allowProjectManagement", 100, 200, 560, 80, AI, "foundry")
-    p.tile("Realtime deployment", "GlobalStandard · REALTIME_DEPLOYMENT_CAPACITY units (1 = 10K TPM + 20 RPM)", 130, 300, 530, 70, AI, "openai")
-    p.tile("Project 'voice-agents'", "holds the Foundry voice agent (preview)", 130, 390, 530, 70, WARN, "foundry", WARN_FILL, True)
-    p.tile("Azure AI Search", "Basic · semantic ranker · key auth off · synthetic 'knowledge' index (40 articles)", 100, 490, 560, 70, AI, "search")
-    p.tile("Communication Services", "global · phone numbers bought in portal", 100, 590, 560, 70, BLUE, "acs")
+    p.group("Subscription (AZURE_SUBSCRIPTION_ID)", 40, 110, 1720, 970, GREY, "none", False)
+    p.group("platform/ · rg-<platform-env> · AZURE_LOCATION", 70, 150, 620, 610, AI)
+    p.group("ONE Foundry resource · AIServices S0", 90, 200, 580, 310, AI, "#FAF8FF", False)
+    p.tile("Managed Voice Live models", "disableLocalAuth · allowProjectManagement", 110, 240, 540, 60, AI, "foundry")
+    p.tile("Realtime deployment", "GlobalStandard · REALTIME_DEPLOYMENT_CAPACITY units (1 = 10K TPM + 20 RPM)", 110, 320, 540, 70, AI, "openai")
+    p.tile("Project 'voice-agents'", "holds the Foundry voice agent (preview)", 110, 410, 540, 70, WARN, "foundry", WARN_FILL, True)
+    p.tile("Azure AI Search · separate resource", "Basic · semantic ranker · key auth off · 'knowledge' index (40 articles)", 100, 530, 560, 70, TEAL, "search")
+    p.tile("Communication Services · optional", "global · configure a number or Direct Routing for ACS calls", 100, 620, 560, 70, BLUE, "acs")
+    p.note("<b>Platform preprovision:</b> check-realtime-quota.ps1 -Platform<br>Checks quota for the shared Realtime deployment before provisioning.",
+           100, 700, 560, 45, AI, "#ffffff", "middle")
 
-    ys = [150, 410, 670]
+    ys = [150, 450, 750]
     apps = [("examples/voice-live-api", BLUE, False), ("examples/realtime-api", BLUE, False), ("examples/foundry-voice-agent (preview)", WARN, True)]
-    hooks = ["", "preprovision: check-realtime-quota.ps1", "postprovision: create-voice-agent.py"]
-    for (name, color, dashed), y, hook in zip(apps, ys, hooks):
-        p.group(f"{name} · rg-<env> · AZURE_APP_LOCATION", 760, y, 960, 240, color, WARN_FILL if dashed else "none", True)
-        p.tile("Container App", "one replica · /ws · /telephony/acs|twilio|asterisk", 790, y + 50, 280, 70, BLUE, "aca")
-        p.tile("Container Registry", "remote build", 1090, y + 50, 280, 70, BLUE, "acr")
-        p.tile("Log Analytics", "console logs", 1390, y + 50, 300, 70, BLUE, "log")
-        p.tile("Managed identity", "Foundry role · Search reader · ACS contributor", 790, y + 140, 280, 70, BLUE, "mi")
-        if hook:
-            p.note(f"<b>azd hook</b><br>{hook}", 1090, y + 140, 600, 70, color, "#ffffff")
-    p.note("<b>Order</b>: 1 platform azd provision → 2 load-knowledge-index.py → 3 buy ACS number → "
-           "4 use-shared-platform.ps1 -Example &lt;x&gt; [-AppLocation eastus2] [-Telephony acs,twilio,asterisk] → 5 azd up per example → "
-           "6 configure-telephony.ps1 (ACS/Twilio) or Asterisk websocket_client.conf.<br>"
-           "<b>Standalone instead</b>: each example has its own Foundry resource + 'voice-agents' project; "
-           "knowledge/ (rg-&lt;kb-env&gt;) supplies AI Search via use-knowledge-base.ps1.",
-           70, 740, 620, 90, GREY, "#F3F2F1", "middle")
+    details = [
+        "<b>Per-app admission</b><br>Browser, ACS, Twilio and Asterisk share this app's SessionHub.<br>The other two apps have their own counters.",
+        "<b>Realtime preprovision</b><br>Quota check skips in shared mode: the platform owns the deployment.<br>Standalone mode checks quota in this example instead.",
+        "<b>Voice-agent postprovision</b><br>create-voice-agent.py publishes the agent in the shared project.<br>Repeat after profile edits; the bridge still executes function tools.",
+    ]
+    for (name, color, dashed), y, detail in zip(apps, ys, details):
+        p.group(f"{name} · rg-<env> · AZURE_APP_LOCATION", 760, y, 960, 290, color, WARN_FILL if dashed else "none", True)
+        p.tile("Container App", "one replica · browser + phone channels", 790, y + 50, 280, 80, BLUE, "aca")
+        p.tile("Container Registry", "remote build · AcrPull", 1090, y + 50, 280, 80, BLUE, "acr")
+        p.tile("Log Analytics", "console logs", 1390, y + 50, 300, 80, BLUE, "log")
+        p.tile("Managed identity", "keyless access · roles listed at left", 790, y + 155, 280, 90, BLUE, "mi")
+        p.note(detail, 1090, y + 155, 600, 90, color, "#ffffff", "middle")
+    p.note("<b>Deploy</b>: platform azd provision → load-knowledge-index.py →<br>"
+           "use-shared-platform.ps1 -Example &lt;x&gt; → azd up per example.<br>"
+           "<b>Optional phones</b>: select acs, twilio, asterisk; configure the provider.<br>"
+           "Use configure-telephony.ps1 for ACS/Twilio or Asterisk websocket_client.conf.<br>"
+           "<b>Standalone instead</b>: each example owns its Foundry resource + project; "
+           "knowledge/ can supply Search via use-knowledge-base.ps1.",
+           70, 780, 620, 130, GREY, "#F3F2F1", "middle")
     p.note("<b>Roles granted to each app identity</b> (shared-access.bicep)<br>"
            "• Foundry: Cognitive Services User + Foundry User (Voice Live, voice agent) or Cognitive Services OpenAI User (Realtime)<br>"
            "• Azure AI Search: Search Index Data Reader · ACS: Contributor (Call Automation)<br>"
            "• Deploying user: Foundry/OpenAI roles + Search contributor roles (agent creation, index load)",
-           70, 845, 620, 90, AI, "#F4EFFA", "middle")
+           70, 930, 620, 120, AI, "#F4EFFA", "middle")
     return p
 
 
 def build() -> str:
     pages = [page_architecture(), page_three_ways(), page_call_flow(), page_deployment()]
-    return '<mxfile host="Electron" modified="2026-09-29T00:00:00.000Z" version="26.0.0">' + "".join(p.xml() for p in pages) + "</mxfile>\n"
+    return '<mxfile host="Electron" modified="2026-09-30T00:00:00.000Z" version="26.0.0">' + "".join(p.xml() for p in pages) + "</mxfile>\n"
 
 
 if __name__ == "__main__":

@@ -2,7 +2,10 @@
 # Creates a new version of the Foundry voice agent from config/agent-profile.json.
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
-$python = if (Test-Path (Join-Path $root ".venv\Scripts\python.exe")) { Join-Path $root ".venv\Scripts\python.exe" } else { "python" }
+$python = "python"
+foreach ($candidate in @(".venv/Scripts/python.exe", ".venv/bin/python")) {
+    if (Test-Path (Join-Path $root $candidate)) { $python = Join-Path $root $candidate; break }
+}
 
 & $python -c "import azure.ai.projects, azure.identity" 2>$null
 if ($LASTEXITCODE -ne 0) {

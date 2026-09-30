@@ -1,28 +1,80 @@
-# 07 — Telephony and the shared AI endpoint
+# 07 — Telephony and the shared Foundry resource
 
-Adds real phone calls and document grounding (RAG) to the comparison while keeping both
-apps on **one subscription and one AI endpoint**, so the test stays inside a single quota
-pool. The browser demo is unchanged; everything here is opt-in.
+Adds real phone calls and document grounding (RAG) while keeping **all three apps on one subscription and one Foundry resource**. The APIs use distinct hosts/routes and limits, **not one literal WebSocket URL or one quota pool**. Admission is per app. The recommended `scripts\demo.ps1` workflow includes Search and lets you opt into ACS, Twilio, and Asterisk; the browser experience remains available on all three apps.
+
+## Recommended wrapper phone setup
+
+Start with [00 — Reproduce this demo](00-reproduce-this-demo.md#recommended-shared-path--deploy-all-three-and-set-up-phones) or the [full deployment contract](03-deployment.md#recommended-shared-deploy-all). Install **Python 3.12+** and local dependencies before actual deployment, from the repo root:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r scripts\requirements-agent.txt
+
+$Demo = @{
+  DemoName = "voice-demo"
+  TenantId = "<tenant-guid>"
+  SubscriptionId = "<subscription-guid>"
+}
+./scripts/demo.ps1 -Action Up @Demo -AppLocation eastus2 -Telephony 'acs,twilio,asterisk' -WhatIf
+./scripts/demo.ps1 -Action Up @Demo -AppLocation eastus2 -Telephony 'acs,twilio,asterisk'
+```
+
+The wrapper uses `.venv/Scripts/python.exe` or `.venv/bin/python`, else `python` (`azure-identity` is required for Search loading; `azure-ai-projects` for the voice agent). On non-Windows hosts install with `.venv/bin/python -m pip install -r scripts/requirements-agent.txt`. AI region defaults to `centralus` (allowed: `centralus`, `eastus2`, `swedencentral`); `-AppLocation` defaults to the AI region if omitted, while the example explicitly uses `eastus2`. Initial `-RealtimeCapacity` is `10`, with existing model defaults. Phone providers default to **none**; choose only the ones you need.
+
+`-WhatIf` prints order/targets **offline**, with no CLI calls, cloud access, or file changes; it is not ARM what-if. Actual `Up` signs `az`/`azd` in tenant-explicitly (`-SkipLogin` still checks Azure context), provisions the platform with **Search always** and **ACS only if selected**, loads 40 articles, wires named app environments, and runs ARM preview then `azd up` for each app sequentially. Postprovision creates the voice-agent version. The wrapper checks `/healthz` and `/api/info` backend/provider configuration and prints three app URLs; **that does not test upstream audio or real calls**. Do not separately deploy `knowledge\` on this path.
+
+### What is automatic, and what stays manual
+
+| Provider | Wrapper output / behavior | Operator handoff |
+|---|---|---|
+| Asterisk | With `-Telephony asterisk`, generates all three `examples/<example>/.azure/<env>/asterisk/` configs: **7001** Voice Live, **7002** Realtime, **7003** voice agent. | Install/configure the external PBX and merge/copy `websocket_client.conf` and `extensions.conf` yourself. Generated configs contain secrets. See [section 7](#7-connect-asterisk-directly-over-wss-no-twilio). |
+| Twilio | Securely prompts for a missing auth token (not a command-line argument), keeps existing secrets, prints all three **HTTP POST** voice webhooks. | Buy/use a number or SIP Domain and set its webhook in Twilio Console. Choose **one target per number**; switch among the three URLs or use separate numbers. |
+| ACS | Creates the ACS resource only when `acs` is selected. Routing is skipped without `-AcsPhoneNumber`; when supplied, creates/updates stable Event Grid subscription **`incoming-demo`** on this demo's ACS resource. | Acquire the number separately **after provisioning (paid step)**, then route it with `Phones` below. One number, one app target. |
+
+### Route an acquired ACS number, or regenerate phone configs
+
+After acquiring a number on this demo's ACS resource:
+
+```powershell
+./scripts/demo.ps1 -Action Phones @Demo -PhoneTarget foundry-voice-agent -AcsPhoneNumber '+<E164-number>'
+```
+
+`Phones` inherits providers from `.azure/demos/<DemoName>.json` and reruns routing/config generation **without `azd up`**; omit Up-only region/provider/capacity/overflow arguments. `-PhoneTarget` defaults to `foundry-voice-agent`; alternatives are `voice-live-api` and `realtime-api`. It updates the single `incoming-demo` route to that target, not all three. Optional `-OverflowNumber +E164` on **Up** configures ACS/Twilio fallback; the external Asterisk dialplan handles its own fallback.
+
+**Avoid duplicate delivery:** older manually created Event Grid subscriptions are **not automatically deleted**. Before testing, inspect all incoming-call routes on the ACS resource for duplicate number filters; one number should reach one app. Do not run the manual per-app routing examples below on top of `incoming-demo` for the same number.
+
+### Resume and tear down the shared demo
+
+`DemoName` is 3–20 lowercase letters/digits/hyphens, starting with a letter and ending alphanumeric. The gitignored, nonsecret manifest records ownership of `<DemoName>-platform`, `-vl`, `-rt`, `-agent`; each project also keeps its own `.azure/<env>/.env`. The wrapper refuses adoption of pre-existing environments/resource groups and tenant/location/provider drift. Resume with the **same Up arguments**; existing env values are used, but naming settings are immutable. There is **no automatic rollback**; completed stages stay deployed and cost money.
+
+```powershell
+./scripts/demo.ps1 -Action Down @Demo -WhatIf
+./scripts/demo.ps1 -Action Down @Demo
+```
+
+`Down` displays the four owned resource groups and asks for confirmation, deleting **agent → Realtime → Voice Live → platform**. No need to repeat regions/providers. `-Force` is unattended-confirmation opt-in; separate `-Purge` requests irreversible `azd --purge` behavior, not guaranteed Cognitive Services purging. Local manifest/env state is kept for retries/audit; use a **new DemoName** after full teardown. `knowledge\` and unrelated environments are never removed. **External Twilio/PBX configuration, phone numbers, and billing require operator cleanup.**
 
 ## What this adds
 
 | Capability | How |
 |---|---|
-| One AI endpoint for all three apps | `platform/` azd project provisions one Foundry (AI Services) resource with one Global Standard realtime deployment and one Foundry project for the voice agent. All three examples run in **shared mode** and only grant their identities access to it. |
+| One Foundry resource for all three apps | `platform/` azd project provisions one Foundry (AI Services) resource with one Global Standard realtime deployment and one Foundry project for the voice agent. All three examples run in **shared mode**, using distinct API hosts/routes and their own app identities. |
 | Phone calls over Azure | ACS Call Automation answers PSTN calls (ACS number or Direct Routing) and streams audio over a **WebSocket** to the same bridge the browser uses. |
 | Phone calls over Twilio | Twilio Media Streams (`<Connect><Stream>`) over a **WebSocket**. Works for Twilio numbers and Twilio SIP Domains, so an existing PBX (for example Asterisk with a SIP trunk to a Twilio SIP Domain) can route an extension or IVR option to the agent. |
 | Phone calls from Asterisk directly | Asterisk `chan_websocket` streams call audio over **WSS** to `/telephony/asterisk/media` (no Twilio, no SIP). |
-| RAG on every channel | `search_knowledge_base` tool (`knowledge_search` handler) queries Azure AI Search (keyword + semantic ranker, managed identity) or a local JSON file. Same tool, same results on browser, ACS, and Twilio calls. |
-| One admission counter | Browser tabs and phone calls share `MAX_CONCURRENT_SESSIONS`. Caller N+1 is sent to `TELEPHONY_OVERFLOW_NUMBER` (human queue) or rejected as busy. |
+| RAG on every channel | `search_knowledge_base` tool (`knowledge_search` handler) queries Azure AI Search (keyword + semantic ranker, managed identity) or a local JSON file. Same handler and knowledge source on browser, ACS, Twilio, and Asterisk calls. |
+| One admission counter **per app** | Browser tabs and phone calls within an app share `MAX_CONCURRENT_SESSIONS`, not a global cap across all three. ACS/Twilio use configured overflow or reject/end the call; Asterisk sends `HANGUP` for dialplan fallback. A human queue is external, not provided by the demo. |
 
 ## Topology
 
 ![Solution architecture](./assets/diagrams/01-solution-architecture.png)
 
+**Diagram scope:** the image shows all three app instances, the project voice agent, and optional ACS/Twilio/Asterisk paths. The compact sketch below focuses on ACS/Twilio ingress to one example app. “One endpoint” here means one Foundry resource with distinct API hosts/routes, not one literal WebSocket URL or a single quota pool for all APIs.
+
 ```text
                                         ┌──────────────── platform RG (centralus) ───────────────┐
 PSTN ─► ACS number ─► Event Grid ───────┤ ACS  ──────────────┐                                    │
-PSTN ─► Twilio number ─────────────┐    │ AI Search (index)  │  Foundry AI Services (ONE endpoint)│
+PSTN ─► Twilio number ─────────────┐    │ AI Search (index)  │  Foundry AI Services (one resource)│
 PBX ─► Twilio SIP Domain ──────────┤    │                    │   ├─ gpt-realtime-2.1-mini (GS)    │
                                    │    └────────────────────┼───┴─ Voice Live (managed models)   │
                                    ▼                         │                                    │
@@ -33,12 +85,21 @@ PBX ─► Twilio SIP Domain ──────────┤    │           
    └──────────────────────────────────────────────────────┘                                        │
 ```
 
-Each example keeps its own Container App, ACR, and Log Analytics. Only the AI endpoint,
-index, and ACS resource are shared.
+Each example keeps its own Container App, ACR, Log Analytics, user-assigned managed identity,
+and `SessionHub`. Only the Foundry resource/project/deployment, separate Search index, and
+optional ACS resource are shared. Browser, ACS, Twilio, and Asterisk sessions share admission
+within one app, **not across the three apps**. Browser overflow gets `busy` + `1013`; ACS/Twilio
+use a configured overflow number or reject/end the call. Asterisk sends `HANGUP` for dialplan
+fallback. A human queue must be configured externally; the demo does not provide one.
 
 ## Audio path
 
 ![Phone call flow](./assets/diagrams/03-phone-call-flow.png)
+
+**Admission in this flow:** ACS/Twilio reserve a slot on the incoming-call webhook and claim it
+when media connects. Asterisk instead attempts admission after `MEDIA_START` on its media
+connection. Audio flows both ways; `input_audio_buffer.append` labels caller audio sent upstream,
+not assistant audio returned to the caller.
 
 | Channel | On the wire | Conversion at the adapter | Barge-in |
 |---|---|---|---|
@@ -47,7 +108,7 @@ index, and ACS resource are shared.
 | Twilio / SIP Domain | G.711 mu-law 8 kHz (`media` events) | decode + 3x upsample in, low-pass + 3x decimate + encode out | `clear` |
 | Asterisk (`chan_websocket`) | Raw BINARY frames, `slin24` recommended (`ulaw`/`slin` supported) | none for `slin24` | `FLUSH_MEDIA` |
 
-Both upstream sessions always receive PCM16 24 kHz, so the Voice Live vs Realtime comparison
+All three upstream paths receive PCM16 24 kHz, so the Voice Live vs Realtime vs voice-agent comparison
 stays apples-to-apples across channels. Telephone calls carry only 8 kHz audio, which is
 why a phone test is still needed: recognition and VAD behave differently on narrowband
 audio than on a browser microphone.
@@ -109,6 +170,8 @@ Azure OpenAI quotas and subscription-level quota — https://learn.microsoft.com
 
 ![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
 
+**Manual shared-platform alternative, not additional wrapper steps.** Prefer `demo.ps1 Up` above for a new demo. The sequence below exposes the underlying helpers for operators managing their own environments; such environments are not adopted by the wrapper. Unlike the wrapper (which always includes Search), this manual path lets you disable Search. Preserve explicit tenant/subscription selection and use fresh named environments for every app.
+
 Follow the multi-tenant auth gate first: confirm `az account show` matches the intended
 tenant and subscription, and use tenant-explicit `azd auth login --tenant-id`.
 
@@ -125,8 +188,8 @@ azd env set REALTIME_DEPLOYMENT_CAPACITY 10      # capacity units: 10 = 100K TPM
 azd provision
 ```
 
-Options: `DEPLOY_SEARCH=false` (use the local knowledge file), `DEPLOY_COMMUNICATION_SERVICES=false`
-(Twilio only), `ACS_DATA_LOCATION` (default `United States`).
+Manual options: `DEPLOY_SEARCH=false` (use the local knowledge file and skip step 2), `DEPLOY_COMMUNICATION_SERVICES=false`
+(no ACS, for example Twilio/Asterisk only), `ACS_DATA_LOCATION` (default `United States`). Set these before provisioning. The wrapper sets Search on and ACS according to the selected providers instead.
 
 ### 2. Load the knowledge index
 
@@ -149,10 +212,14 @@ Replace `config/knowledge-base.json` with your own documents (or point the tool'
 
 ### 4. Point each app at the platform and deploy
 
+This manual helper accepts a token variable; use masked input rather than typing a secret literal in command history. The recommended wrapper handles the secure prompt itself and preserves existing secrets. Create/select the intended fresh azd environment in each app folder before wiring it.
+
 ```powershell
-./scripts/use-shared-platform.ps1 -Example realtime-api  -PlatformEnv voice-shared -Telephony acs,twilio -TwilioAuthToken <twilio-auth-token> -OverflowNumber +15555550100
-./scripts/use-shared-platform.ps1 -Example voice-live-api -PlatformEnv voice-shared -Telephony acs,twilio -TwilioAuthToken <twilio-auth-token> -OverflowNumber +15555550100
-./scripts/use-shared-platform.ps1 -Example foundry-voice-agent -PlatformEnv voice-shared -Telephony acs,twilio -TwilioAuthToken <twilio-auth-token> -OverflowNumber +15555550100
+$TwilioAuthToken = Read-Host "Twilio auth token" -MaskInput
+./scripts/use-shared-platform.ps1 -Example realtime-api  -PlatformEnv voice-shared -Telephony acs,twilio -TwilioAuthToken $TwilioAuthToken -OverflowNumber +15555550100
+./scripts/use-shared-platform.ps1 -Example voice-live-api -PlatformEnv voice-shared -Telephony acs,twilio -TwilioAuthToken $TwilioAuthToken -OverflowNumber +15555550100
+./scripts/use-shared-platform.ps1 -Example foundry-voice-agent -PlatformEnv voice-shared -Telephony acs,twilio -TwilioAuthToken $TwilioAuthToken -OverflowNumber +15555550100
+Remove-Variable TwilioAuthToken
 
 cd examples/realtime-api;  azd up
 cd ../voice-live-api;      azd up
@@ -198,10 +265,11 @@ subscription. Guidance:
 - Nothing else moves: ACS is a global resource, AI Search and the realtime deployment stay in the
   platform region, and `PUBLIC_BASE_URL` follows the Container Apps environment automatically.
 - Resource names don't depend on the app region, so Azure rejects moving an already-deployed app
-  tier to a new `AZURE_APP_LOCATION`. Run `azd down --purge` first (or use a new azd environment),
-  then re-run `configure-telephony.ps1` because the app URL changes.
+  tier to a new `AZURE_APP_LOCATION`. Use fresh manual environments, or deliberately tear down the old ones first; purge is a separate irreversible choice. For wrapper-owned deployments, use a new `DemoName` rather than editing the recorded location. Regenerate phone configs/routes because app URLs change.
 
 ### 5. Route ACS numbers (Event Grid)
+
+**Manual alternative only:** these helpers create per-app subscriptions, unlike the wrapper's single stable `incoming-demo`. Use different numbers and check for existing subscriptions with the same number filter; do not layer these routes onto a wrapper-managed number.
 
 ```powershell
 ./scripts/configure-telephony.ps1 -Example realtime-api  -PhoneNumber +1<acs-number-A>
@@ -230,7 +298,7 @@ Set the Voice webhook (HTTP POST) to `https://<app>/telephony/twilio/voice`:
      SIP Domain → agent.
 
 Point one Twilio number (or one SIP Domain) at each app; to compare, change the webhook
-between the two app URLs or use two numbers.
+among the **three app URLs** or use three numbers. Each number/SIP Domain has one target at a time; the wrapper prints these URLs but does not configure Twilio Console for you.
 
 **Generic customer pattern:** an existing contact-center platform or SBC reaches ACS through
 **Direct Routing**, or any platform that can stream call audio over a WebSocket can be added
@@ -247,6 +315,8 @@ wss://<app-fqdn>/telephony/asterisk/media
 ```
 
 Enable it on an example (standalone or shared mode), deploy, and generate the Asterisk config:
+
+For wrapper deployments, this is already done by `Up -Telephony asterisk`; use `Phones` to regenerate the three app configs without redeploying. The commands below are the **manual per-example alternative**.
 
 ```powershell
 ./scripts/enable-telephony.ps1 -Example <example> -Providers asterisk     # generates TELEPHONY_WEBHOOK_SECRET + ASTERISK_WEBSOCKET_SECRET
@@ -318,15 +388,15 @@ To reach it **directly from Asterisk**, use `chan_websocket` as shown above.
 
 | Step | What it proves | How |
 |---|---|---|
-| 1 | All three apps healthy on the shared endpoint | `GET /api/info` shows `telephony` and `knowledge: azure-ai-search:knowledge` |
+| 1 | All three apps respond and report shared-platform configuration (not an upstream audio test) | `GET /healthz` succeeds; `GET /api/info` shows the intended backend, `telephony`, and `knowledge: azure-ai-search:knowledge` |
 | 2 | RAG over browser | Ask a how-to question; the tool pane shows `search_knowledge_base` with index results |
 | 3 | RAG over phone | Call each number and ask the same question; logs show `phone_tool_call` |
 | 4 | Barge-in on the phone | Talk over the agent; agent playback stops as soon as the upstream VAD reports speech |
-| 5 | Admission control | Set `MAX_CONCURRENT_SESSIONS=2`, place 3 calls; the 3rd goes to overflow/busy |
+| 5 | Admission control within one app | Set that app's `MAX_CONCURRENT_SESSIONS=2`, place 3 calls to it; the 3rd gets ACS/Twilio overflow/busy or Asterisk `HANGUP` for dialplan fallback |
 | 6 | Concurrency and quota | Browser/probe sweep 1/4/10/20, then repeat with real calls; compare TTFA p50/p90 and tokens/min per API (see [04-testing](04-testing.md)) |
 
 Logs (Log Analytics → `ContainerAppConsoleLogs_CL`): `voice_session_start/end` now include
-`channel` (`browser`, `acs`, `twilio`) so browser and phone results can be separated.
+`channel` (`browser`, `acs`, `twilio`, `asterisk`) so browser and phone results can be separated.
 
 ## Security notes
 

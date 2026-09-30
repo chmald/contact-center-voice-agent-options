@@ -24,7 +24,7 @@ The third example, `examples\foundry-voice-agent\`, is a Foundry Agent Service v
 
 Capacity-wise, it behaves like Voice Live for this demo: no model deployment and no Azure OpenAI quota, but it shares the resource's Voice Live new-connection and TPM limits when run on the shared platform. Treat it as a preview governance/observability option, not a production replacement for the two GA API paths.
 
-> **PDF note:** `docs\assets\comparison-one-pager.pdf` was regenerated from the HTML on 2026-09-29 (headless Edge `--print-to-pdf`) and matches this page.
+> **PDF note:** [`assets/comparison-one-pager.pdf`](./assets/comparison-one-pager.pdf) is a concise, one-page export of [`assets/comparison-one-pager.html`](./assets/comparison-one-pager.html), not a reproduction of this longer Markdown deep dive. The HTML/PDF intentionally compare the two GA APIs with a preview callout for the third option. Regenerate from the repo root with `pwsh scripts\export-comparison.ps1` (Microsoft Edge). The print copy disables navigation links to avoid embedding local file paths; the HTML keeps its links.
 
 ## Side-by-side comparison
 
@@ -34,8 +34,8 @@ Capacity-wise, it behaves like Voice Live for this demo: no model deployment and
 |---|---|---|
 | Service, status, API version | Azure AI Speech Voice Live API; GA default `api-version=2026-07-15`. | Azure OpenAI GPT Realtime API GA `/openai/v1`; no date-based `api-version`. |
 | Endpoint | `wss://<foundry>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>`; `cognitiveservices.azure.com` host also works. | `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>`; `model` is the Azure deployment name. |
-| What you provision | `Microsoft.CognitiveServices/accounts` kind `AIServices`, S0, custom subdomain, local auth disabled, no model deployment. | Same `AIServices` resource plus `Microsoft.CognitiveServices/accounts/deployments` for the realtime model. |
-| Model selection | Query string `model=<model>`; Voice Live manages the backing model. Agent mode uses `agent-name` and `agent-project-name`; BYOM adds `profile=<mode>`. | Bicep creates a Global Standard deployment with `model.name`, `model.version`, `sku.capacity`, `versionUpgradeOption`, and `raiPolicyName`. |
+| What you provision | Standalone: own `Microsoft.CognitiveServices/accounts` kind `AIServices`, S0, custom subdomain, local auth disabled, and a Foundry project; no model deployment. Shared: reuse platform resource/project. | Standalone: same resource/project shape plus `Microsoft.CognitiveServices/accounts/deployments` for the realtime model. Shared: reuse platform resource/project/deployment. |
+| Model selection | Query string `model=<model>`; Voice Live manages the backing model. The demo's voice agent defaults to the project-scoped route described above; BYOM adds `profile=<mode>`. | Bicep creates a Global Standard deployment with `model.name`, `model.version`, `sku.capacity`, `versionUpgradeOption`, and `raiPolicyName`. |
 | Models and lifecycle | Demo default `gpt-realtime-mini` is GA and Basic tier; `gpt-realtime-2.1-mini` is supported but preview in Voice Live.[4] Lifecycle is service-managed; re-check model and region tables before use. | Demo default `gpt-realtime-2.1-mini` version `2026-07-07` is GA and retires `2027-06-25`; `gpt-realtime-mini` version `2025-12-15` is GA but has conflicting retirement rows, so plan to the earlier listed date.[1] |
 | Capacity and limits | **Not a deployment** — no Azure OpenAI deployment quota. Per S0 resource: <=120K TPM, 100 new connections/min, <=60-minute sessions. New-connections/min is adjustable by Azure support request; TPM rises with it (TPM = NCPM x 4,000; Learn's table and example disagree — confirm the effective TPM).[6] | Deployment TPM/RPM quota per model + version, moving to a subscription-level Global Standard pool across regions; documented default for base `gpt-realtime` is 100K TPM / 200 RPM. Request quota with the Azure OpenAI quota form. No PTU for realtime; regional capacity is constrained; new quota can be refused for versions near retirement. |
 | Scaling to N concurrent calls | Still requires sizing: per-call p90 TPM x concurrency must fit resource limits or be handled by support increase / multiple resources. Voice Live shifts capacity management; it does not make capacity limitless. | Still requires sizing: per-call p90 TPM x concurrency must fit approved subscription quota and deployment capacity. Insufficient quota can fail provisioning or create latency before 429s. Realtime capacity is set in capacity units (`gpt-realtime-2.1-mini`: 10K TPM + 20 RPM per unit; default quota often 10 units = 100K TPM).[3] |
@@ -142,9 +142,9 @@ The payloads below were rendered from the real bridge methods with default API s
 | `build_headers` scope | `https://ai.azure.com/.default` with optional local-only `VOICE_LIVE_API_KEY`. | `AZURE_OPENAI_TOKEN_SCOPE`, default `https://ai.azure.com/.default`, with optional local-only `AZURE_OPENAI_API_KEY`. |
 | `build_session_update` | Flat schema, Azure voice object, Azure semantic VAD, deep noise suppression, echo cancellation, built-in transcription, `temperature`, `max_response_output_tokens`. | Nested GA schema, OpenAI voice string, semantic/server VAD, optional noise reduction, optional separate transcription deployment, `max_output_tokens`. |
 | Event aliases | Shared base accepts both `response.audio.*` and `conversation.item.created`. | Shared base accepts both `response.output_audio.*` and `conversation.item.added`. |
-| Infra delta | Creates `AIServices` only; grants Cognitive Services User + Foundry User to the UAMI and deploying principal; no model deployment. | Adds a deployment resource, `REALTIME_DEPLOYMENT_CAPACITY`, model version mapping, `versionUpgradeOption`, and Cognitive Services OpenAI User role assignments. |
+| Infra delta | Standalone creates `AIServices` plus a Foundry project; shared mode reuses them. Grants Cognitive Services User + Foundry User to the UAMI and deploying principal; no model deployment. | Adds a deployment resource in standalone mode (reuses the platform deployment in shared mode), `REALTIME_DEPLOYMENT_CAPACITY`, model version mapping, `versionUpgradeOption`, and Cognitive Services OpenAI User role assignments. |
 
-Everything else is shared and unchanged: browser mic/speaker client, 24 kHz PCM16 WebSocket envelope, FastAPI server factory, tool registry, metrics, admission control, history trimming, local-run script, fake upstream tests, and the load probe.
+Everything else reuses the same implementation: browser mic/speaker client, 24 kHz PCM16 WebSocket envelope, FastAPI server factory, tool registry, metrics, admission control, history trimming, local-run script, fake upstream tests, and the load probe. Each example runs its own app instance and `SessionHub`; the admission counter is not shared across the three apps, even in shared-platform mode.
 
 ## Capacity & quota implications for a contact center
 
@@ -161,9 +161,9 @@ How each option handles that:
 - **Voice Live API:** request a new-connections/min increase, which raises the dependent TPM limit, and/or shard across resources. Confirm the 100 new-connections/min gate separately from steady concurrent sessions.
 - **Foundry voice agent:** same Voice Live limit model as Voice Live API; in shared mode it shares the resource limit with the Voice Live example, so run one at a time or use a separate resource for fair capacity tests.
 - **Realtime API:** secure subscription-level quota for the model/global pool, choose a supported region with available capacity, and set deployment capacity within the available capacity units (`az cognitiveservices usage list`; 1 unit = 10K TPM + 20 RPM for `gpt-realtime-2.1-mini`).
-- **Both:** keep `MAX_CONCURRENT_SESSIONS` below the validated capacity envelope; route overflow with the bridge's `busy` response rather than leaving callers in silence.
+- **All three apps:** keep each app's `MAX_CONCURRENT_SESSIONS` below its validated capacity envelope. Browser overflow gets `busy` + `1013`; ACS/Twilio use configured overflow or reject/end the call; Asterisk sends `HANGUP` for dialplan fallback. There is no built-in human queue; see [architecture](./01-architecture.md#end-to-end-data-flow).
 
-Token-reduction levers are usually cheaper than quota: trim instructions and tool schemas, keep spoken answers to one or two sentences, cap or delete history with `conversation.max_history_items`, truncate unheard audio on barge-in, and load test with the same prompts, audio cadence, and tool frequency expected in production.
+Token-reduction levers are usually cheaper than quota: trim instructions and tool schemas, keep spoken answers to one or two sentences, cap or delete history with `conversation.max_history_items`, and load test with the same prompts, audio cadence, and tool frequency expected in production. Upstream unheard-audio truncation via `conversation.item.truncate` remains future hardening; the current bridge flushes/cancels/discards playback but does not implement that truncation.
 
 **Confirm before you move:** get quota or Voice Live limit increases approved and visible, run the load probe at target concurrency, verify p90 TTFA and busy count in Log Analytics, and keep the current region/path as a rollback option until the bake-off passes.
 
@@ -241,4 +241,4 @@ Verified 2026-09-25; re-verify model lifecycle, regions, quota, and pricing befo
 - Azure Retail Prices API: https://prices.azure.com/api/retail/prices
 - Repo code inspected: `examples\voice-live-api\src\voice_live_bridge.py`, `examples\realtime-api\src\realtime_api_bridge.py`, both `infra\modules\resources.bicep`, both `azure.yaml`, both example `README.md`, and `shared\voiceagent_core\bridge.py`.
 
-*Last updated: 2026-09-29*
+*Last updated: 2026-09-30 (local documentation revision)*

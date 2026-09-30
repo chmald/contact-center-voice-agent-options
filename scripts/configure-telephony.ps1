@@ -24,6 +24,10 @@ param(
 
     [string]$ExampleEnv = "",
 
+    # Stable name lets the lifecycle wrapper retarget one number without fan-out.
+    [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9-]{2,63}$')]
+    [string]$EventSubscriptionName = "",
+
     [ValidatePattern('^\+[1-9]\d{6,14}$')]
     [string]$PhoneNumber = ""
 )
@@ -70,7 +74,7 @@ if ($providers -contains "acs") {
     if (-not $envValues["ACS_EVENTGRID_SECRET"]) { throw "ACS_EVENTGRID_SECRET missing - re-run use-shared-platform.ps1 -Telephony acs and azd up." }
     $acsId = az resource show --name $envValues["ACS_RESOURCE_NAME"] --resource-group $envValues["SHARED_RESOURCE_GROUP"] --resource-type "Microsoft.Communication/communicationServices" --subscription $envValues["AZURE_SUBSCRIPTION_ID"] --query id -o tsv
     if (-not $acsId) { throw "ACS resource not found." }
-    $subscriptionName = ("incoming-" + $Example).ToLowerInvariant()
+    $subscriptionName = if ($EventSubscriptionName) { $EventSubscriptionName } else { ("incoming-" + $Example).ToLowerInvariant() }
     $endpoint = "$baseUrl/telephony/acs/events?secret=$($envValues['ACS_EVENTGRID_SECRET'])"
     az eventgrid event-subscription create `
         --name $subscriptionName `

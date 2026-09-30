@@ -14,7 +14,7 @@ Reference architecture for the Voice Live API vs. GPT Realtime API vs. Foundry v
 
 ## Non-goals
 
-- Not a contact-center implementation. The optional ACS/Twilio adapters ([07](07-telephony-and-shared-endpoint.md)) put real phone calls on the same bridge for testing; they are not IVR, queueing, or agent-desktop software.
+- Not a contact-center implementation. The optional ACS/Twilio/Asterisk adapters ([07](07-telephony-and-shared-endpoint.md)) put real phone calls on each app's bridge for testing; they are not IVR, queueing, or agent-desktop software.
 - Not a multi-region, private-network, autoscaled production landing zone.
 - Not a benchmark that controls every variable automatically; the docs show how to create a fair same-model run, but the operator records quota, region, and model context.
 
@@ -28,54 +28,66 @@ Reference architecture for the Voice Live API vs. GPT Realtime API vs. Foundry v
 
 ![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
 
-> **Presentation-ready diagrams**: the PNGs above are exported from the 4-page [`assets\voice-live-vs-realtime-api-architecture.drawio`](./assets/voice-live-vs-realtime-api-architecture.drawio). Regenerate with `python scripts\build-diagrams.py` then `pwsh scripts\export-diagrams.ps1`. The Mermaid view below is the text companion for review and diffs.
+> **Presentation-ready diagrams**: the PNGs above are exported from the 4-page [`assets\voice-live-vs-realtime-api-architecture.drawio`](./assets/voice-live-vs-realtime-api-architecture.drawio). Regenerate with `python scripts\build-diagrams.py` then `pwsh scripts\export-diagrams.ps1`. The Mermaid view below is the **shared-platform mode** text companion for review and diffs.
 
 ```mermaid
-flowchart LR
-    Browser["Browser\nshared static UI\nmic + text + playback"]
-
-    subgraph VoiceApp["examples\\voice-live-api"]
-        VoiceCA["Container App bridge\nFastAPI + RealtimeStyleBridge"]
-        VoiceMI["User-assigned managed identity"]
+flowchart TB
+    subgraph Channels["Entry paths - phone channels are optional"]
+        Browser["Browser<br/>mic, text, playback"]
+        ACS["ACS number or Direct Routing<br/>Event Grid + Call Automation"]
+        Twilio["Twilio number or SIP Domain<br/>Media Streams"]
+        Asterisk["Asterisk<br/>chan_websocket over WSS"]
     end
 
-    subgraph RealtimeApp["examples\\realtime-api"]
-        RealtimeCA["Container App bridge\nFastAPI + RealtimeStyleBridge"]
-        RealtimeMI["User-assigned managed identity"]
+    Entry["Select the target app's own URL<br/>browser /ws or provider-specific /telephony routes"]
+    Browser <--> Entry
+    ACS <--> Entry
+    Twilio <--> Entry
+    Asterisk <--> Entry
+
+    subgraph Apps["Three independent app tiers - same shared core implementation"]
+        subgraph VoiceApp["examples/voice-live-api"]
+            VoiceCA["Container App bridge<br/>one replica, own SessionHub"]
+            VoiceResources["Own ACR Basic + Log Analytics<br/>own user-assigned managed identity"]
+            VoiceResources --- VoiceCA
+        end
+        subgraph RealtimeApp["examples/realtime-api"]
+            RealtimeCA["Container App bridge<br/>one replica, own SessionHub"]
+            RealtimeResources["Own ACR Basic + Log Analytics<br/>own user-assigned managed identity"]
+            RealtimeResources --- RealtimeCA
+        end
+        subgraph AgentApp["examples/foundry-voice-agent"]
+            AgentCA["Container App bridge<br/>one replica, own SessionHub"]
+            AgentResources["Own ACR Basic + Log Analytics<br/>own user-assigned managed identity"]
+            AgentResources --- AgentCA
+        end
     end
 
-    subgraph AgentApp["examples\\foundry-voice-agent"]
-        AgentCA["Container App bridge\nVoiceAgentBridge + shared core"]
-        AgentMI["User-assigned managed identity"]
+    Entry <--> VoiceCA
+    Entry <--> RealtimeCA
+    Entry <--> AgentCA
+
+    subgraph Platform["Shared platform"]
+        subgraph Foundry["ONE Foundry resource - AIServices S0"]
+            VoiceLive["Voice Live<br/>managed models"]
+            RealtimeDeployment["Global Standard<br/>realtime deployment"]
+            subgraph Project["Foundry project: voice-agents"]
+                VoiceAgent["Versioned voice agent<br/>config + tool declarations"]
+            end
+            VoiceAgent -.->|"served by"| VoiceLive
+        end
+        Search["Separate Azure AI Search resource<br/>40 knowledge articles"]
     end
 
-    subgraph Platform["Azure platform"]
-        ACR["Container Registry\nBasic"]
-        Logs["Log Analytics\nContainerAppConsoleLogs_CL"]
-        VoiceFoundry["Foundry resource\nAIServices S0\nVoice Live model"]
-        RealtimeFoundry["Foundry resource\nAIServices S0\nRealtime deployment"]
-        RealtimeDeployment["Deployment\ngpt-realtime-2.1-mini\nor gpt-realtime-mini"]
-        FoundryProject["Foundry project\nvoice-agents"]
-        VoiceAgent["Versioned voice agent\ninstructions + tools + voice"]
-    end
-
-    Browser <-->|"WSS /ws\nPCM16 24 kHz + JSON"| VoiceCA
-    Browser <-->|"WSS /ws\nPCM16 24 kHz + JSON"| RealtimeCA
-    Browser <-->|"WSS /ws\nPCM16 24 kHz + JSON"| AgentCA
-    VoiceCA -->|"WSS /voice-live/realtime\nEntra bearer"| VoiceFoundry
-    RealtimeCA -->|"WSS /openai/v1/realtime\nEntra bearer"| RealtimeFoundry
-    AgentCA -->|"WSS /api/projects/.../agents/.../endpoint/protocols/voice"| VoiceFoundry
-    RealtimeFoundry --> RealtimeDeployment
-    VoiceFoundry --> FoundryProject --> VoiceAgent
-    VoiceCA --> Logs
-    RealtimeCA --> Logs
-    AgentCA --> Logs
-    ACR --> VoiceCA
-    ACR --> RealtimeCA
-    VoiceMI --> VoiceFoundry
-    RealtimeMI --> RealtimeFoundry
-    AgentMI --> VoiceFoundry
+    VoiceCA <-->|"WSS /voice-live/realtime"| VoiceLive
+    RealtimeCA <-->|"WSS /openai/v1/realtime"| RealtimeDeployment
+    AgentCA <-->|"WSS project-scoped voice route"| VoiceAgent
+    Apps -.->|"Each app executes search_knowledge_base"| Search
 ```
+
+**Read the graph:** channel selection is a drawing abstraction, not a shared gateway or load balancer. Each channel connects to one app's own URL and adapter; each app executes its own tools and uses its own identity for upstream and Search access. ACS is a separate optional platform resource; Twilio and Asterisk are optional external entry paths. The app-tier-to-Search connector represents the same RAG implementation running inside all three apps, not a fourth service. Local mode reads the same **40 articles** from `config\knowledge-base.json` instead of Search; `record_lookup` always reads the **30 request records** from local `config\sample-data.json`.
+
+**Shared versus standalone:** shared mode reuses one Foundry resource with distinct API hosts/routes (`services.ai.azure.com` for Voice Live/agent mode; `openai.azure.com` for Realtime). In standalone mode, **each of the three examples creates its own Foundry resource and project**; only the Realtime example creates a model deployment. App tiers remain separate in both modes. Shared Voice Live resource limits are not a shared app admission counter.
 
 ---
 
@@ -84,8 +96,10 @@ flowchart LR
 | Layer | Components | Responsibility |
 |---|---|---|
 | User interaction | `shared\static\index.html`, `app.js`, `audio-worklet.js`, `styles.css` | Browser UI, microphone capture, 24 kHz PCM16 chunks, gapless playback, barge-in playback flush, text turns, transcript, tool and metrics panes. |
-| App bridge | `shared\voiceagent_core\server.py`, `bridge.py`, `metrics.py`, `tools.py`, API-specific bridge files | Terminates browser WebSocket, opens upstream WebSocket, applies session config, executes tools server-side, logs metrics, gates concurrency. |
-| Platform | Container Apps, ACR Basic, Log Analytics, user-assigned managed identity, Foundry `AIServices` resource | Hosts the bridge, stores logs, pulls images, and provides managed identity to call the upstream API. |
+| Phone adapters (optional) | `shared\voiceagent_core\telephony\` — ACS, Twilio, Asterisk | Authenticate channel traffic, convert audio as needed, handle playback flush and channel-specific busy behavior, and share that app's admission cap. |
+| App bridge | `shared\voiceagent_core\server.py`, `bridge.py`, `metrics.py`, `tools.py`, API-specific bridge files | Runs in each app; opens upstream WebSocket, applies session config for the two API examples (agent mode uses stored config), executes tools, logs metrics, gates concurrency. |
+| Knowledge tools | `rag.py`, `config\knowledge-base.json`, `config\sample-data.json` | `search_knowledge_base` uses Search or 40 local articles; `record_lookup` reads 30 local records separately. |
+| Platform | Per-app Container Apps, ACR Basic, Log Analytics, user-assigned managed identity; Foundry, separate Search, optional ACS | Hosts each bridge and its logs/images/identity; shared mode reuses Foundry/Search/ACS resources, not the app processes. |
 | Model/API | Voice Live managed model, Realtime model deployment, or Foundry voice agent | Performs realtime speech/text generation, turn detection, function calling, and token usage reporting. |
 
 ---
@@ -110,6 +124,8 @@ flowchart LR
 ## End-to-end data flow
 
 ![Phone call flow](./assets/diagrams/03-phone-call-flow.png)
+
+The numbered steps below describe the browser path. Phone adapters use the same bridge core: ACS/Twilio reserve admission on the incoming-call webhook and claim it when media connects; Asterisk attempts admission after `MEDIA_START` on its media connection. All channels share **that app's** cap. At capacity, browser gets `busy` + close `1013`; ACS redirects to a configured overflow number or rejects; Twilio gives a busy message and configured `Dial` fallback or ends the call; Asterisk sends `HANGUP` so the dialplan can handle fallback. The demo does not implement a human queue.
 
 1. The browser loads `/api/info`, then opens `WSS /ws` to the Container App.
 2. The FastAPI app admits the session if `active_sessions < MAX_CONCURRENT_SESSIONS`; otherwise it sends `{"type":"busy"}` and closes with code `1013`.
@@ -164,7 +180,9 @@ The protocol is shared across all three examples and comes from the `server.py` 
 |---|---|
 | Browser to server | Browser sees only `/ws`, `/api/info`, static assets, transcripts, audio, and tool results. No upstream credentials or raw tool definitions are needed client-side. |
 | Server to upstream API | For Voice Live and Realtime, the bridge holds instructions, tool schemas, tool handlers, and Entra/API-key credentials. For agent mode, the Foundry project holds the versioned agent definition; the bridge still holds tool handlers and Entra credentials. |
-| Deployed identity | User-assigned managed identity is granted only the required API role(s) and AcrPull. |
+| Phone provider to app | Optional ACS/Twilio/Asterisk adapters authenticate their webhooks/media using channel-specific secrets, signatures, or tokens; see [07 security notes](./07-telephony-and-shared-endpoint.md#security-notes). They enter the same per-app admission boundary as the browser. |
+| Deployed identity | Each app has its own user-assigned managed identity with required API role(s) and AcrPull; optional Search access uses Search Index Data Reader, and ACS uses Contributor scoped to the ACS resource. |
+| Server to knowledge | Search is a separate Azure resource accessed by the app identity; the local JSON fallback and record lookup remain inside the app process. |
 | Local auth | Bicep sets `disableLocalAuth: true` on the Foundry resource. API-key env vars are documented for local experiments against a separate key-enabled resource only. |
 | Voice Live RBAC | Cognitive Services User `a97b65f3-24c7-4388-baec-2e87135dc908` and Foundry User `53ca6127-db72-4b80-b1b0-d745d6d5456d`. |
 | Realtime RBAC | Cognitive Services OpenAI User `5e0bd9bd-7b93-4f28-af87-19fc36ad61bd`. |
@@ -180,9 +198,9 @@ The root README has the three-way comparison, while [`06-comparison-one-pager.md
 |---|---|---|---|
 | `examples\voice-live-api\src\voice_live_bridge.py` | Builds `/voice-live/realtime` URL with `api-version=2026-07-15`; flat session schema; Azure or OpenAI voice object; Azure semantic VAD; managed model string; sends instructions and tools each session. | Not used. | Not used. |
 | `examples\realtime-api\src\realtime_api_bridge.py` | Not used. | Builds `/openai/v1/realtime` URL with no `api-version`; GA nested session schema; deployment name in `model=`; optional transcription deployment; sends instructions and tools each session. | Not used. |
-| `examples\foundry-voice-agent\src\voice_agent_bridge.py` | Not used. | Not used. | Builds the project-scoped `/api/projects/<p>/agents/<a>/endpoint/protocols/voice` URL with the `Foundry-Features` header (Voice Live agent-mode route optional); sends no session config or greeting because the agent owns them (optional `VOICE_AGENT_ROUTE=project` uses the portal's project-scoped route). |
+| `examples\foundry-voice-agent\src\voice_agent_bridge.py` | Not used. | Not used. | Defaults to `VOICE_AGENT_ROUTE=project`: builds `/api/projects/<p>/agents/<a>/endpoint/protocols/voice` with the `Foundry-Features` header; sends no session config or greeting because the agent owns them. The alternative `VOICE_AGENT_ROUTE=voice-live` currently fails for `kind: voice` agents in local testing. |
 | `scripts\create-voice-agent.py` | Not used. | Not used. | Creates a Foundry Agent Service voice agent version from `config\agent-profile.json` through `azure-ai-projects` 2.7.0 with `allow_preview=True`. |
-| `examples\*\infra\modules\resources.bicep` | Creates Foundry resource and role assignments only; no model deployment. | Creates Foundry resource plus `accounts/deployments` for the realtime model. | Creates Foundry resource with `allowProjectManagement: true`, system identity, and a `Microsoft.CognitiveServices/accounts/projects@2025-06-01` project in standalone mode; shared mode uses the platform project. |
+| `examples\*\infra\modules\resources.bicep` | Standalone: own Foundry resource with project management, project, and role assignments; no model deployment. Shared: reuses platform resource/project. | Standalone: own Foundry resource with project management, project, and `accounts/deployments` realtime model. Shared: reuses platform resource/project/deployment. | Standalone: own Foundry resource with `allowProjectManagement: true`, system identity, and a `Microsoft.CognitiveServices/accounts/projects@2025-06-01` project. Shared: reuses platform resource/project. |
 | `examples\*\infra\main.parameters.json` | Uses `VOICE_LIVE_MODEL`, `VOICE_LIVE_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `AZURE_OPENAI_REALTIME_MODEL`, `AZURE_OPENAI_REALTIME_MODEL_VERSION`, `AZURE_OPENAI_REALTIME_DEPLOYMENT`, `REALTIME_DEPLOYMENT_CAPACITY`, `REALTIME_VERSION_UPGRADE_OPTION`, `REALTIME_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `VOICE_AGENT_MODEL`, `VOICE_AGENT_VOICE`, `VOICE_AGENT_NAME`, `VOICE_AGENT_PROJECT_NAME`, shared-project values, and `MAX_CONCURRENT_SESSIONS`. |
 
 Everything else should remain shared unless a future decision record says otherwise.
@@ -230,7 +248,7 @@ Learn guidance recommends WebRTC for low-latency browser audio on the Realtime A
 
 ### Shared client and core
 
-`shared\static\` and `shared\voiceagent_core\` are the comparison harness. If behavior belongs to all three options, it stays shared. If it is an upstream contract difference, it belongs in the example-specific bridge, agent-creation hook, or Bicep.
+`shared\static\` and `shared\voiceagent_core\` are the comparison harness, reused by three independently deployed app instances. Shared implementation does not mean a shared running bridge or distributed `SessionHub`. If behavior belongs to all three options, it stays shared. If it is an upstream contract difference, it belongs in the example-specific bridge, agent-creation hook, or Bicep.
 
 ### Foundry voice agent as preview third option
 
@@ -242,7 +260,7 @@ The deployed path uses Entra tokens and user-assigned managed identities. `disab
 
 ### One replica plus admission control
 
-`MAX_CONCURRENT_SESSIONS` is per process. Keeping min and max replicas at one makes the cap global and easy to reason about during demos. Production scale-out must pair multi-replica routing with shared or distributed admission control.
+`MAX_CONCURRENT_SESSIONS` is per process: `create_app` creates a `SessionHub` for each app. Keeping min and max replicas at one makes the cap app-wide across browser, ACS, Twilio, and Asterisk sessions, **not global across the three examples**. Shared Foundry resource limits still need sizing across the apps that consume them. Production scale-out must pair multi-replica routing with shared or distributed admission control.
 
 ### Model defaults
 
@@ -311,7 +329,7 @@ Keep the extension generic:
 
 - Replace browser WebSocket audio with WebRTC for Realtime browser apps where low latency is the priority.
 - Harden the telephony adapters for production: Entra ID–protected Event Grid delivery instead of a query-string secret, and a production-grade resampler (or native G.711 upstream sessions) for the Twilio path.
-- Implement `conversation.item.truncate` and Voice Live `auto_truncate` for unheard audio during barge-in.
+- Implement `conversation.item.truncate` and Voice Live `auto_truncate` for unheard audio during barge-in. Current playback flush/cancel/discard behavior does not implement upstream unheard-audio truncation.
 - Add private networking, private endpoints, ingress restrictions, and managed egress as needed.
 - Redesign admission control for multiple replicas; `MAX_CONCURRENT_SESSIONS` is per replica today.
 - Add second-region failover and a model-capacity runbook before production cutover.
@@ -321,4 +339,4 @@ Keep the extension generic:
 
 ---
 
-*Last updated: 2026-09-29*
+*Last updated: 2026-09-30 (local documentation revision)*
