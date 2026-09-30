@@ -4,6 +4,7 @@ __pycache__/
 .azure/
 .env
 .env.*
+!.env.sample
 *.local.json
 *.local.*
 demo-ids.json
@@ -11,7 +12,7 @@ demo-ids.json
 *.key
 secrets.json
 .sp-secret.json
-loadtest/results*.json
+results*.json
 .vscode/
 node_modules/
 *.what-if.json

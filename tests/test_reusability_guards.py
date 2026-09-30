@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import re
+import shutil
+import subprocess
 
 import pytest
 
@@ -10,7 +13,8 @@ DOMAIN_TERMS = ["Contoso", "service request", "lookup_request_status", "SR-10"]
 # would leak them). Put one term per line in the gitignored
 # tests/forbidden-terms.local.txt, or set FORBIDDEN_TERMS="term1,term2".
 FORBIDDEN_TERMS_FILE = "forbidden-terms.local.txt"
-USER_PROFILE_PATH = re.compile(r"\b[A-Za-z]:\\Users\\[A-Za-z0-9._-]+|/home/[a-z0-9._-]+/|/Users/[A-Za-z0-9._-]+/")
+# JSON escapes backslashes, so match one or two between segments.
+USER_PROFILE_PATH = re.compile(r"\b[A-Za-z]:\\{1,2}Users\\{1,2}[A-Za-z0-9._-]+|/home/[a-z0-9._-]+/|/Users/[A-Za-z0-9._-]+/")
 SKIP_DIRS = {".venv", ".git", "__pycache__", ".pytest_cache", "node_modules", ".azure"}
 TEXT_SUFFIXES = {
     ".bicep",
@@ -41,9 +45,24 @@ def _forbidden_terms(repo_root) -> list[str]:
     return terms
 
 
+def _committable_paths(root):
+    """Tracked plus untracked-but-not-ignored files: everything a commit could include."""
+    git = shutil.which("git") or next(
+        (p for p in (r"C:\Program Files\Git\cmd\git.exe",) if Path(p).exists()), None
+    )
+    if git:
+        result = subprocess.run(
+            [git, "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            capture_output=True, check=False,
+        )
+        if result.returncode == 0:
+            return [root / name for name in result.stdout.decode("utf-8").split("\0") if name]
+    return list(root.rglob("*"))
+
+
 def _text_files(root):
-    for path in root.rglob("*"):
-        if any(part in SKIP_DIRS for part in path.parts):
+    for path in _committable_paths(root):
+        if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
             continue
         if path.name.endswith(".local.txt") or ".local." in path.name:
             continue  # gitignored local-only files (never distributed)
