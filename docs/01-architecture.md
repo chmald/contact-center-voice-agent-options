@@ -1,10 +1,37 @@
+[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 01 Architecture
+
 # 01 — Architecture
 
+<p>
+  <img src="./assets/icons/speech.svg" width="40" alt="Voice Live">&nbsp;
+  <img src="./assets/icons/azure-openai.svg" width="40" alt="Azure OpenAI Realtime">&nbsp;
+  <img src="./assets/icons/foundry-agent-service.svg" width="40" alt="Foundry Agent Service">&nbsp;
+  <img src="./assets/icons/container-apps.svg" width="40" alt="Azure Container Apps">&nbsp;
+  <img src="./assets/icons/ai-search.svg" width="40" alt="Azure AI Search">&nbsp;
+  <img src="./assets/icons/managed-identity.svg" width="40" alt="Managed identity">
+</p>
+
+<p>
+  <img src="./assets/badges/version.svg" alt="Version v1.4.2">
+  <img src="./assets/badges/ga.svg" alt="Voice Live and Realtime: GA">
+  <img src="./assets/badges/public-preview.svg" alt="Foundry voice agent: Public preview">
+  <img src="./assets/badges/optional.svg" alt="Phone channels and Search are optional">
+</p>
+
 Reference architecture for the Voice Live API vs. GPT Realtime API vs. Foundry voice agent demo. Read this first, then [02-prerequisites.md](./02-prerequisites.md).
+
+> [!NOTE]
+> Shared mode reuses one Foundry resource through distinct API hosts and routes; the three app tiers always stay separate, each with its own Container App, registry, logs, identity, and admission counter.
+
+> [!IMPORTANT]
+> `MAX_CONCURRENT_SESSIONS` is per app process, not global across the three examples. Shared Voice Live resource limits are a different pool from the app admission counter.
 
 ---
 
 ## Goals
+
+> [!TIP]
+> The comparison is only fair because the browser UI, bridge core, tools, metrics, and load probe are identical; only the upstream differs.
 
 - Compare Voice Live API, GPT Realtime API, and a Foundry voice agent through the same browser UI, app bridge, tools, metrics, and load probe.
 - Keep credentials, prompts, and tool handlers server-side.
@@ -13,6 +40,9 @@ Reference architecture for the Voice Live API vs. GPT Realtime API vs. Foundry v
 - Preserve enough app-side metrics to reason about latency, token growth, quota pressure, and admission control.
 
 ## Non-goals
+
+> [!CAUTION]
+> Do not treat this repo as a production landing zone: no multi-region failover, private networking, or autoscaled admission control.
 
 - Not a contact-center implementation. The optional ACS/Twilio/Asterisk adapters ([07](07-telephony-and-shared-endpoint.md)) put real phone calls on each app's bridge for testing; they are not IVR, queueing, or agent-desktop software.
 - Not a multi-region, private-network, autoscaled production landing zone.
@@ -28,62 +58,14 @@ Reference architecture for the Voice Live API vs. GPT Realtime API vs. Foundry v
 
 ![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
 
-> **Presentation-ready diagrams**: the PNGs above are exported from the 4-page [`assets\voice-live-vs-realtime-api-architecture.drawio`](./assets/voice-live-vs-realtime-api-architecture.drawio). Regenerate with `python scripts\build-diagrams.py` then `pwsh scripts\export-diagrams.ps1`. The Mermaid view below is the **shared-platform mode** text companion for review and diffs.
+<sub>Editable sources: [`assets/diagrams/01-solution-architecture.drawio`](./assets/diagrams/01-solution-architecture.drawio), [`02-three-ways-to-connect.drawio`](./assets/diagrams/02-three-ways-to-connect.drawio), [`03-phone-call-flow.drawio`](./assets/diagrams/03-phone-call-flow.drawio), [`04-deployment-and-regions.drawio`](./assets/diagrams/04-deployment-and-regions.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
 
-```mermaid
-flowchart TB
-    subgraph Channels["Entry paths - phone channels are optional"]
-        Browser["Browser<br/>mic, text, playback"]
-        ACS["ACS number or Direct Routing<br/>Event Grid + Call Automation"]
-        Twilio["Twilio number or SIP Domain<br/>Media Streams"]
-        Asterisk["Asterisk<br/>chan_websocket over WSS"]
-    end
+> [!NOTE]
+> **Presentation-ready diagrams**: the PNGs above are exported from editable `.drawio` sources that sit next to them in `assets\diagrams\`. The diagram below is the **shared-platform mode** view for review and diffs.
 
-    Entry["Select the target app's own URL<br/>browser /ws or provider-specific /telephony routes"]
-    Browser <--> Entry
-    ACS <--> Entry
-    Twilio <--> Entry
-    Asterisk <--> Entry
+[![Shared-platform architecture: entry paths, three independent app tiers, and one Foundry resource with an optional Azure AI Search](./assets/01-architecture-shared-platform.png)](./assets/01-architecture-shared-platform.png)
 
-    subgraph Apps["Three independent app tiers - same shared core implementation"]
-        subgraph VoiceApp["examples/voice-live-api"]
-            VoiceCA["Container App bridge<br/>one replica, own SessionHub"]
-            VoiceResources["Own ACR Basic + Log Analytics<br/>own user-assigned managed identity"]
-            VoiceResources --- VoiceCA
-        end
-        subgraph RealtimeApp["examples/realtime-api"]
-            RealtimeCA["Container App bridge<br/>one replica, own SessionHub"]
-            RealtimeResources["Own ACR Basic + Log Analytics<br/>own user-assigned managed identity"]
-            RealtimeResources --- RealtimeCA
-        end
-        subgraph AgentApp["examples/foundry-voice-agent"]
-            AgentCA["Container App bridge<br/>one replica, own SessionHub"]
-            AgentResources["Own ACR Basic + Log Analytics<br/>own user-assigned managed identity"]
-            AgentResources --- AgentCA
-        end
-    end
-
-    Entry <--> VoiceCA
-    Entry <--> RealtimeCA
-    Entry <--> AgentCA
-
-    subgraph Platform["Shared platform"]
-        subgraph Foundry["ONE Foundry resource - AIServices S0"]
-            VoiceLive["Voice Live<br/>managed models"]
-            RealtimeDeployment["Global Standard<br/>realtime deployment"]
-            subgraph Project["Foundry project: voice-agents"]
-                VoiceAgent["Versioned voice agent<br/>config + tool declarations"]
-            end
-            VoiceAgent -.->|"served by"| VoiceLive
-        end
-        Search["Separate Azure AI Search resource<br/>40 knowledge articles"]
-    end
-
-    VoiceCA <-->|"WSS /voice-live/realtime"| VoiceLive
-    RealtimeCA <-->|"WSS /openai/v1/realtime"| RealtimeDeployment
-    AgentCA <-->|"WSS project-scoped voice route"| VoiceAgent
-    Apps -.->|"Each app executes search_knowledge_base"| Search
-```
+<sub>Editable source: [`assets/01-architecture-shared-platform.drawio`](./assets/01-architecture-shared-platform.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
 
 **Read the graph:** channel selection is a drawing abstraction, not a shared gateway or load balancer. Each channel connects to one app's own URL and adapter; each app executes its own tools and uses its own identity for upstream and Search access. ACS is a separate optional platform resource; Twilio and Asterisk are optional external entry paths. The app-tier-to-Search connector represents the same RAG implementation running inside all three apps, not a fourth service. Local mode reads the same **40 articles** from `config\knowledge-base.json` instead of Search; `record_lookup` always reads the **30 request records** from local `config\sample-data.json`.
 
@@ -108,16 +90,16 @@ flowchart TB
 
 | Component | Voice Live example | Realtime example | Foundry voice agent example |
 |---|---|---|---|
-| Example root | `examples\voice-live-api\` | `examples\realtime-api\` | `examples\foundry-voice-agent\` |
-| Bridge file | `examples\voice-live-api\src\voice_live_bridge.py` | `examples\realtime-api\src\realtime_api_bridge.py` | `examples\foundry-voice-agent\src\voice_agent_bridge.py` |
-| Endpoint | `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>` | `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>` | `wss://<resource>.services.ai.azure.com/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` + `Foundry-Features: VoiceAgents=V1Preview` |
-| Session schema | Flat Voice Live schema | GA nested Realtime schema | Agent mode: **no** `session.update` and no greeting `response.create` by default; instructions, tools, voice, greeting, and audio pipeline are stored on the agent |
-| Default model | `gpt-realtime-mini` | `gpt-realtime-2.1-mini` | `gpt-realtime-2.1-mini` |
-| Default voice | `en-US-Ava:DragonHDLatestNeural` | `marin` | `en-US-Ava:DragonHDLatestNeural` stored on the agent |
-| Model provisioning | Managed by Voice Live; no deployment in Bicep | `Microsoft.CognitiveServices/accounts/deployments` with Global Standard SKU | Managed by Voice Live through Agent Service; no Azure OpenAI deployment |
-| Required API roles | Cognitive Services User + Foundry User | Cognitive Services OpenAI User | Cognitive Services User + Foundry User for app identity; Foundry User for the deployer |
-| Shared app roles | AcrPull on ACR | AcrPull on ACR | AcrPull on ACR |
-| Local key env var | `VOICE_LIVE_API_KEY` | `AZURE_OPENAI_API_KEY` | None; agent mode is Entra ID only |
+| <img src="./assets/icons/folder.svg" width="20" alt="Folder"> Example root | `examples\voice-live-api\` | `examples\realtime-api\` | `examples\foundry-voice-agent\` |
+| <img src="./assets/icons/code.svg" width="20" alt="Code"> Bridge file | `examples\voice-live-api\src\voice_live_bridge.py` | `examples\realtime-api\src\realtime_api_bridge.py` | `examples\foundry-voice-agent\src\voice_agent_bridge.py` |
+| <img src="./assets/icons/speech.svg" width="20" alt="Speech endpoint"> Endpoint | `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>` | `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>` | `wss://<resource>.services.ai.azure.com/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` + `Foundry-Features: VoiceAgents=V1Preview` |
+| <img src="./assets/icons/file.svg" width="20" alt="Schema"> Session schema | Flat Voice Live schema | GA nested Realtime schema | Agent mode: **no** `session.update` and no greeting `response.create` by default; instructions, tools, voice, greeting, and audio pipeline are stored on the agent |
+| <img src="./assets/icons/foundry-models.svg" width="20" alt="Model"> Default model | `gpt-realtime-mini` | `gpt-realtime-2.1-mini` | `gpt-realtime-2.1-mini` |
+| <img src="./assets/icons/media-file.svg" width="20" alt="Voice"> Default voice | `en-US-Ava:DragonHDLatestNeural` | `marin` | `en-US-Ava:DragonHDLatestNeural` stored on the agent |
+| <img src="./assets/icons/foundry.svg" width="20" alt="Foundry"> Model provisioning | Managed by Voice Live; no deployment in Bicep | `Microsoft.CognitiveServices/accounts/deployments` with Global Standard SKU | Managed by Voice Live through Agent Service; no Azure OpenAI deployment |
+| <img src="./assets/icons/managed-identity.svg" width="20" alt="Managed identity"> Required API roles | Cognitive Services User + Foundry User | Cognitive Services OpenAI User | Cognitive Services User + Foundry User for app identity; Foundry User for the deployer |
+| <img src="./assets/icons/container-registry.svg" width="20" alt="Container Registry"> Shared app roles | AcrPull on ACR | AcrPull on ACR | AcrPull on ACR |
+| <img src="./assets/icons/keys.svg" width="20" alt="Keys"> Local key env var | `VOICE_LIVE_API_KEY` | `AZURE_OPENAI_API_KEY` | None; agent mode is Entra ID only |
 
 ---
 
@@ -199,7 +181,7 @@ The root README has the three-way comparison, while [`06-comparison-one-pager.md
 | `examples\voice-live-api\src\voice_live_bridge.py` | Builds `/voice-live/realtime` URL with `api-version=2026-07-15`; flat session schema; Azure or OpenAI voice object; Azure semantic VAD; managed model string; sends instructions and tools each session. | Not used. | Not used. |
 | `examples\realtime-api\src\realtime_api_bridge.py` | Not used. | Builds `/openai/v1/realtime` URL with no `api-version`; GA nested session schema; deployment name in `model=`; optional transcription deployment; sends instructions and tools each session. | Not used. |
 | `examples\foundry-voice-agent\src\voice_agent_bridge.py` | Not used. | Not used. | Defaults to `VOICE_AGENT_ROUTE=project`: builds `/api/projects/<p>/agents/<a>/endpoint/protocols/voice` with the `Foundry-Features` header; sends no session config or greeting because the agent owns them. The alternative `VOICE_AGENT_ROUTE=voice-live` currently fails for `kind: voice` agents in local testing. |
-| `scripts\create-voice-agent.py` | Not used. | Not used. | Creates a Foundry Agent Service voice agent version from `config\agent-profile.json` through `azure-ai-projects` 2.7.0 with `allow_preview=True`. |
+| `scripts\create-voice-agent.py` | Not used. | Not used. | Creates a Foundry Agent Service voice agent version from `config\agent-profile.json` through `azure-ai-projects` 2.7.0 with `allow_preview=True`. <img src="./assets/badges/public-preview.svg" alt="Public preview"> |
 | `examples\*\infra\modules\resources.bicep` | Standalone: own Foundry resource with project management, project, and role assignments; no model deployment. Shared: reuses platform resource/project. | Standalone: own Foundry resource with project management, project, and `accounts/deployments` realtime model. Shared: reuses platform resource/project/deployment. | Standalone: own Foundry resource with `allowProjectManagement: true`, system identity, and a `Microsoft.CognitiveServices/accounts/projects@2025-06-01` project. Shared: reuses platform resource/project. |
 | `examples\*\infra\main.parameters.json` | Uses `VOICE_LIVE_MODEL`, `VOICE_LIVE_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `AZURE_OPENAI_REALTIME_MODEL`, `AZURE_OPENAI_REALTIME_MODEL_VERSION`, `AZURE_OPENAI_REALTIME_DEPLOYMENT`, `REALTIME_DEPLOYMENT_CAPACITY`, `REALTIME_VERSION_UPGRADE_OPTION`, `REALTIME_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `VOICE_AGENT_MODEL`, `VOICE_AGENT_VOICE`, `VOICE_AGENT_NAME`, `VOICE_AGENT_PROJECT_NAME`, shared-project values, and `MAX_CONCURRENT_SESSIONS`. |
 
@@ -241,6 +223,9 @@ Primary measurements:
 ---
 
 ## Decisions with rationale
+
+> [!NOTE]
+> Each decision below is also summarized in the README's locked-decisions table; change them only with an updated decision record.
 
 ### Server-side WebSocket bridge
 
@@ -327,6 +312,9 @@ Keep the extension generic:
 
 ## Production hardening
 
+> [!WARNING]
+> The v1 baseline is a demo. Work through this list before treating any path as production, and remember the Foundry voice agent is public preview.
+
 - Replace browser WebSocket audio with WebRTC for Realtime browser apps where low latency is the priority.
 - Harden the telephony adapters for production: Entra ID–protected Event Grid delivery instead of a query-string secret, and a production-grade resampler (or native G.711 upstream sessions) for the Twilio path.
 - Implement `conversation.item.truncate` and Voice Live `auto_truncate` for unheard audio during barge-in. Current playback flush/cancel/discard behavior does not implement upstream unheard-audio truncation.
@@ -337,6 +325,8 @@ Keep the extension generic:
 - Budget prompt, tool schema, and history tokens; trim instructions and tool definitions aggressively.
 - Evaluate the Voice Live SDK and Realtime SDK/WebRTC helpers after the raw protocol comparison is complete.
 
+**Next:** [02 — Prerequisites](./02-prerequisites.md).
+
 ---
 
-*Last updated: 2026-09-30 (local documentation revision)*
+*Last updated: 2026-10-02*

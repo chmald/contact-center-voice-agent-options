@@ -1,4 +1,23 @@
+[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 07 Telephony and shared endpoint
+
 # 07 — Telephony and the shared Foundry resource
+
+<p>
+<img src="./assets/icons/communication-services.svg" width="40" alt="Azure Communication Services"/>&nbsp;
+<img src="./assets/icons/speech.svg" width="40" alt="Azure AI Voice Live"/>&nbsp;
+<img src="./assets/icons/azure-openai.svg" width="40" alt="Azure OpenAI GPT Realtime"/>&nbsp;
+<img src="./assets/icons/ai-search.svg" width="40" alt="Azure AI Search"/>&nbsp;
+<img src="./assets/icons/container-apps.svg" width="40" alt="Azure Container Apps"/>&nbsp;
+<img src="./assets/icons/managed-identity.svg" width="40" alt="Managed identity"/>
+</p>
+
+![version](./assets/badges/version.svg) ![Static only](./assets/badges/static-only.svg) ![Optional](./assets/badges/optional.svg)
+
+> [!IMPORTANT]
+> No live ACS, Twilio, or Asterisk call is recorded as verified. Telephony adapters are covered by protocol-level tests and fake-upstream tests; see [Known limitations](#known-limitations) and [04 Testing](./04-testing.md#live-validation).
+
+> [!CAUTION]
+> Telephony generates secrets (Asterisk configs, Twilio auth token, ACS Event Grid secret). Keep generated files out of source control and see [Security notes](#security-notes).
 
 Adds real phone calls and document grounding (RAG) while keeping **all three apps on one subscription and one Foundry resource**. The APIs use distinct hosts/routes and limits, **not one literal WebSocket URL or one quota pool**. Admission is per app. The recommended `scripts\demo.ps1` workflow includes Search and lets you opt into ACS, Twilio, and Asterisk; the browser experience remains available on all three apps.
 
@@ -94,7 +113,9 @@ fallback. A human queue must be configured externally; the demo does not provide
 
 ## Audio path
 
-![Phone call flow](./assets/diagrams/03-phone-call-flow.png)
+[![Phone call flow](./assets/diagrams/03-phone-call-flow.png)](./assets/diagrams/03-phone-call-flow.png)
+
+<sub>Editable source: [`assets/diagrams/03-phone-call-flow.drawio`](./assets/diagrams/03-phone-call-flow.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
 
 **Admission in this flow:** ACS/Twilio reserve a slot on the incoming-call webhook and claim it
 when media connects. Asterisk instead attempts admission after `MEDIA_START` on its media
@@ -398,7 +419,13 @@ To reach it **directly from Asterisk**, use `chan_websocket` as shown above.
 Logs (Log Analytics → `ContainerAppConsoleLogs_CL`): `voice_session_start/end` now include
 `channel` (`browser`, `acs`, `twilio`, `asterisk`) so browser and phone results can be separated.
 
-## Security notes
+## <img src="./assets/icons/keys.svg" width="28" alt=""/> Security notes
+
+| Control | Behavior |
+|---|---|
+| Event Grid secret | `ACS_EVENTGRID_SECRET` in the query string, distinct from the call-token signing key |
+| Per-call HMAC token | Bound to purpose and call; ACS media / Twilio stream tokens default 300 s, ACS callback tokens default 4 h |
+| Twilio handshake | Valid token within 10 s; at most 50 unauthenticated sockets |
 
 - Event Grid → app uses `ACS_EVENTGRID_SECRET` in the query string (visible to anyone with read
   access to the Event Grid subscription). It is deliberately a different value from the
@@ -417,7 +444,15 @@ Logs (Log Analytics → `ContainerAppConsoleLogs_CL`): `voice_session_start/end`
   resource only**. Search access is **Search Index Data Reader**; Search keys are disabled.
 - Transcripts are logged at DEBUG only (they can contain caller PII).
 
-## Known limitations
+## <img src="./assets/icons/monitor.svg" width="28" alt=""/> Known limitations
+
+![Static only](./assets/badges/static-only.svg)
+
+| Area | Limitation |
+|---|---|
+| Live validation | Not validated against live ACS/Twilio traffic |
+| Audio quality | mu-law resampler is a lightweight linear-interpolation/FIR design for telephone-band audio |
+| Load generation | No automated phone-driven load; use the browser/probe sweep for scale |
 
 - Not yet validated against live ACS/Twilio traffic; the adapters are covered by protocol-level
   tests and an end-to-end test through the real Realtime bridge with a fake upstream.
@@ -429,3 +464,9 @@ Logs (Log Analytics → `ContainerAppConsoleLogs_CL`): `voice_session_start/end`
   after 30 s; a failed ACS answer releases its reservation immediately.
 - Phone-driven load generation (placing N simultaneous calls automatically) is not included;
   use the browser/probe sweep for scale and a handful of real calls for phone quality.
+
+---
+
+**Next:** [09 Environment variables](./09-environment-variables.md)
+
+*Last updated: 2026-10-02*

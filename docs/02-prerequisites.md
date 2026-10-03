@@ -1,8 +1,45 @@
+[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 02 Prerequisites
+
 # 02 — Prerequisites
+
+<p>
+  <img src="./assets/icons/subscription.svg" width="40" alt="Azure subscription">&nbsp;
+  <img src="./assets/icons/entra-id.svg" width="40" alt="Entra ID and RBAC">&nbsp;
+  <img src="./assets/icons/azure-openai.svg" width="40" alt="Realtime quota">&nbsp;
+  <img src="./assets/icons/powershell.svg" width="40" alt="PowerShell and CLI tools">&nbsp;
+  <img src="./assets/icons/cost-management.svg" width="40" alt="Cost estimate">
+</p>
+
+<p>
+  <img src="./assets/badges/version.svg" alt="Version v1.4.2">
+  <img src="./assets/badges/ga.svg" alt="Voice Live and Realtime: GA">
+  <img src="./assets/badges/public-preview.svg" alt="Foundry voice agent: Public preview">
+  <img src="./assets/badges/optional.svg" alt="Phone channels are optional">
+</p>
 
 Everything required before deploying any of the three examples. Work through this list before [00-reproduce-this-demo.md](./00-reproduce-this-demo.md) or the deployment guides.
 
+## At a glance
+
+| | Area | What you need |
+|---|---|---|
+| <img src="./assets/icons/powershell.svg" width="20" alt="Tools"> | Tools | Azure CLI, `azd` 1.30+, Bicep 0.43+, Python 3.12+, PowerShell 7+, browser |
+| <img src="./assets/icons/entra-id.svg" width="20" alt="Permissions"> | Permissions | Contributor + User Access Administrator, or Owner |
+| <img src="./assets/icons/azure-openai.svg" width="20" alt="Quota"> | Quota | Realtime Global Standard capacity units in the chosen region |
+| <img src="./assets/icons/foundry.svg" width="20" alt="Region"> | Region | `centralus`, `eastus2`, or `swedencentral` for a same-region comparison |
+
+[![Prerequisites map: tools, permissions, providers, region, and quota that must be in place before deployment](./assets/prerequisites-map.png)](./assets/prerequisites-map.png)
+
+<sub>Editable source: [`assets/prerequisites-map.drawio`](./assets/prerequisites-map.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
+
+> [!WARNING]
 > **Plan ahead.** The Realtime example creates a model deployment and can fail on quota. Check quota before starting deployment.
+
+> [!IMPORTANT]
+> Authenticate tenant-explicitly every time (`az login --tenant`, `azd auth login --tenant-id`) and confirm with `az account show`; ambient login state can point at the wrong tenant or subscription.
+
+> [!TIP]
+> Work top to bottom, then tick the [pre-flight checklist](#pre-flight-checklist) at the end.
 
 ---
 
@@ -10,13 +47,13 @@ Everything required before deploying any of the three examples. Work through thi
 
 | Tool | Required version or check | Notes |
 |---|---|---|
-| Azure CLI | Installed `az`; capture exact version with `az version` | Needs Cognitive Services, Container Apps, Container Registry, and provider-registration commands used below. |
-| Azure Developer CLI (`azd`) | 1.30+; latest verified in the facts brief is 1.34.2 | Each example has its own `azure.yaml`. Use `azd auth login --tenant-id`. |
-| Bicep | 0.43+ | Local Bicep 0.43.8 drove the current API-version pins. |
-| Python | 3.12+ | Containers use `python:3.12-slim`; local scripts and tests use the repo `.venv`. The voice-agent postprovision hook installs `azure-ai-projects` from `scripts\requirements-agent.txt` when it creates the Foundry agent. |
-| PowerShell | 7+ | Required for `scripts\run-local.ps1` and the Windows-first command examples. |
-| Browser | Modern browser with microphone support | Needed for the shared browser UI and AudioWorklet capture. |
-| Docker | Optional | `docker.remoteBuild: true` builds in ACR, so local Docker is not required for the `azd` path. |
+| <img src="./assets/icons/dev-console.svg" width="20" alt="Azure CLI"> Azure CLI | Installed `az`; capture exact version with `az version` | Needs Cognitive Services, Container Apps, Container Registry, and provider-registration commands used below. |
+| <img src="./assets/icons/dev-console.svg" width="20" alt="Azure Developer CLI"> Azure Developer CLI (`azd`) | 1.30+; latest verified in the facts brief is 1.34.2 | Each example has its own `azure.yaml`. Use `azd auth login --tenant-id`. |
+| <img src="./assets/icons/code.svg" width="20" alt="Bicep"> Bicep | 0.43+ | Local Bicep 0.43.8 drove the current API-version pins. |
+| <img src="./assets/icons/code.svg" width="20" alt="Python"> Python | 3.12+ | Containers use `python:3.12-slim`; local scripts and tests use the repo `.venv`. The voice-agent postprovision hook installs `azure-ai-projects` from `scripts\requirements-agent.txt` when it creates the Foundry agent. |
+| <img src="./assets/icons/powershell.svg" width="20" alt="PowerShell"> PowerShell | 7+ | Required for `scripts\run-local.ps1` and the Windows-first command examples. |
+| <img src="./assets/icons/speech.svg" width="20" alt="Browser microphone"> Browser | Modern browser with microphone support | Needed for the shared browser UI and AudioWorklet capture. |
+| <img src="./assets/icons/container-registry.svg" width="20" alt="Docker and ACR"> Docker | Optional | `docker.remoteBuild: true` builds in ACR, so local Docker is not required for the `azd` path. |
 
 ---
 
@@ -108,7 +145,7 @@ Deploy all examples to the same AI region when comparing latency. If you split r
 
 Snapshot as of **2026-09-25**. Verify at deployment time.
 
-| Region | Voice Live `gpt-realtime-mini` | Realtime Global Standard family | Foundry voice agent preview | Container Apps managed environment | Recommended use |
+| Region | Voice Live `gpt-realtime-mini` <img src="./assets/badges/ga.svg" alt="GA"> | Realtime Global Standard family <img src="./assets/badges/ga.svg" alt="GA"> | Foundry voice agent <img src="./assets/badges/public-preview.svg" alt="Public preview"> | Container Apps managed environment | Recommended use |
 |---|---|---|---|---|---|
 | `centralus` | Confirmed | Confirmed | Re-check Agent Service + Voice Live support | Verify | Tier 1 same-region bake-off |
 | `eastus2` | Confirmed | Confirmed | Re-check Agent Service + Voice Live support | Verify | Tier 1 same-region bake-off |
@@ -184,11 +221,14 @@ Known lifecycle points from the verified brief:
 
 | Model | Version | Status in brief | Retirement note |
 |---|---|---|---|
-| `gpt-realtime-2.1-mini` | `2026-07-07` | GA | 2027-06-25 |
-| `gpt-realtime-mini` | `2025-12-15` | GA | Conflicting duplicate rows: 2026-12-15 vs. 2027-06-15 |
-| `gpt-realtime-mini` | `2025-10-06` | GA | Conflicting duplicate rows: 2026-09-21 vs. 2027-04-06 |
+| `gpt-realtime-2.1-mini` | `2026-07-07` | <img src="./assets/badges/ga.svg" alt="GA"> | 2027-06-25 |
+| `gpt-realtime-mini` | `2025-12-15` | <img src="./assets/badges/ga.svg" alt="GA"> | Conflicting duplicate rows: 2026-12-15 vs. 2027-06-15 |
+| `gpt-realtime-mini` | `2025-10-06` | <img src="./assets/badges/ga.svg" alt="GA"> | Conflicting duplicate rows: 2026-09-21 vs. 2027-04-06 |
 
-Plan against the earlier conflicting date until Microsoft corrects the page. Voice Live `gpt-realtime-2.1-mini` is preview in the verified Voice Live model table; verify regional support before relying on it for the same-model bake-off.
+> [!CAUTION]
+> Plan against the earlier conflicting retirement date until Microsoft corrects the page.
+
+Voice Live `gpt-realtime-2.1-mini` is preview in the verified Voice Live model table; verify regional support before relying on it for the same-model bake-off.
 
 ---
 
@@ -198,15 +238,15 @@ All three examples (and `platform\`) deploy at subscription scope and create a r
 
 | Resource | Pattern |
 |---|---|
-| Resource group | `rg-<environmentName>` |
-| Name suffix | `uniqueString(subscription().id, environmentName, location)` |
-| Log Analytics workspace | `log-<suffix>` |
-| Container Apps environment | `cae-<suffix>` |
-| Container Registry | `cr<suffix>` |
-| User-assigned identity | `id-<suffix>` |
-| Foundry `AIServices` account | `ais-<suffix>` |
-| Container App | `ca-web-<suffix>` |
-| Realtime deployment name | `realtimeDeploymentName` when set, otherwise the model name |
+| <img src="./assets/icons/resource-group.svg" width="20" alt="Resource group"> Resource group | `rg-<environmentName>` |
+| <img src="./assets/icons/gear.svg" width="20" alt="Suffix"> Name suffix | `uniqueString(subscription().id, environmentName, location)` |
+| <img src="./assets/icons/log-analytics.svg" width="20" alt="Log Analytics"> Log Analytics workspace | `log-<suffix>` |
+| <img src="./assets/icons/container-apps-environment.svg" width="20" alt="Container Apps environment"> Container Apps environment | `cae-<suffix>` |
+| <img src="./assets/icons/container-registry.svg" width="20" alt="Container Registry"> Container Registry | `cr<suffix>` |
+| <img src="./assets/icons/managed-identity.svg" width="20" alt="Managed identity"> User-assigned identity | `id-<suffix>` |
+| <img src="./assets/icons/foundry.svg" width="20" alt="Foundry"> Foundry `AIServices` account | `ais-<suffix>` |
+| <img src="./assets/icons/container-apps.svg" width="20" alt="Container App"> Container App | `ca-web-<suffix>` |
+| <img src="./assets/icons/azure-openai.svg" width="20" alt="Realtime deployment"> Realtime deployment name | `realtimeDeploymentName` when set, otherwise the model name |
 
 Outputs include the resource group, location, ACR endpoint/name, Container App name/URI, API endpoint, model/deployment values, voice value, and Foundry resource name.
 
@@ -271,6 +311,9 @@ Voice Live `gpt-realtime-mini` and `gpt-realtime-2.1-mini` are Basic tier in the
 
 ## Pre-flight checklist
 
+> [!TIP]
+> Treat this as the gate for the whole page: do not start deployment until every box is ticked.
+
 Confirm all of these before moving to deployment:
 
 - [ ] Azure CLI, `azd`, Bicep, Python, PowerShell 7, and browser are installed.
@@ -286,6 +329,8 @@ Confirm all of these before moving to deployment:
 - [ ] Cost expectations modeled for ACR, Container Apps, Log Analytics, and model tokens.
 - [ ] No populated IDs, `.env.local`, `.azure\`, or secrets are staged for commit.
 
+**Next:** [03 — Deployment](./03-deployment.md).
+
 ---
 
-*Last updated: 2026-09-29*
+*Last updated: 2026-10-02*

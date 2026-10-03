@@ -5,7 +5,6 @@ from __future__ import annotations
 from html import unescape
 from html.parser import HTMLParser
 import re
-import runpy
 import struct
 from urllib.parse import unquote, urlsplit
 import xml.etree.ElementTree as ET
@@ -14,7 +13,6 @@ import pytest
 
 
 ASSET_ROOT = "docs/assets"
-DIAGRAM_SOURCE = "voice-live-vs-realtime-api-architecture.drawio"
 PAGES = (
     ("arch", "1 - Solution architecture", "01-solution-architecture.png"),
     ("ways", "2 - Three ways to connect", "02-three-ways-to-connect.png"),
@@ -24,13 +22,13 @@ PAGES = (
 
 
 @pytest.fixture
-def diagram_generator(repo_root):
-    return runpy.run_path(str(repo_root / "scripts" / "build-diagrams.py"))
-
-
-@pytest.fixture
-def diagram_xml(diagram_generator):
-    return ET.fromstring(diagram_generator["build"]())
+def diagram_xml(repo_root):
+    """The four editable sources (docs/assets/diagrams/0N-*.drawio) assembled as one <mxfile>."""
+    mxfile = ET.Element("mxfile")
+    for _, _, png in PAGES:
+        source = repo_root / ASSET_ROOT / "diagrams" / png.replace(".png", ".drawio")
+        mxfile.extend(ET.parse(source).getroot().findall("diagram"))
+    return mxfile
 
 
 class HtmlContent(HTMLParser):
@@ -60,11 +58,12 @@ def _bounds(cell):
     return tuple(float(geometry.get(key, "0")) for key in ("x", "y", "width", "height"))
 
 
-def test_committed_diagram_matches_deterministic_generator(repo_root, diagram_generator):
-    generated = diagram_generator["build"]()
-    assert generated == diagram_generator["build"]()
-    source = repo_root / ASSET_ROOT / DIAGRAM_SOURCE
-    assert source.read_text(encoding="utf-8") == generated, "Run scripts/build-diagrams.py and re-export the PNGs"
+def test_png_exports_are_current(repo_root):
+    for _, _, png in PAGES:
+        image = repo_root / ASSET_ROOT / "diagrams" / png
+        source = image.with_suffix(".drawio")
+        assert image.stat().st_mtime >= source.stat().st_mtime, (
+            f"{png} is older than its .drawio - run python scripts/export_diagrams.py docs/assets/diagrams")
 
 
 def test_diagram_pages_ids_edges_and_bounds(diagram_xml):
@@ -155,5 +154,5 @@ def test_documentation_asset_links_resolve(repo_root):
         assert resolved.exists(), f"{document.name}: missing {target}"
         if resolved.is_relative_to(repo_root / ASSET_ROOT):
             asset_targets.add(resolved.name)
-    assert {DIAGRAM_SOURCE, "comparison-one-pager.html", "comparison-one-pager.pdf"} <= asset_targets
+    assert {"comparison-one-pager.html", "comparison-one-pager.pdf"} <= asset_targets
     assert {filename for _, _, filename in PAGES} <= asset_targets

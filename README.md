@@ -1,5 +1,35 @@
 # Voice Live API vs. GPT Realtime API vs. Foundry voice agents
 
+<p align="center">
+  <img src="./docs/assets/icons/speech.svg" width="48" alt="Azure AI Speech (Voice Live)">&nbsp;&nbsp;
+  <img src="./docs/assets/icons/azure-openai.svg" width="48" alt="Azure OpenAI (Realtime API)">&nbsp;&nbsp;
+  <img src="./docs/assets/icons/foundry-agent-service.svg" width="48" alt="Foundry Agent Service">&nbsp;&nbsp;
+  <img src="./docs/assets/icons/container-apps.svg" width="48" alt="Azure Container Apps">&nbsp;&nbsp;
+  <img src="./docs/assets/icons/ai-search.svg" width="48" alt="Azure AI Search">&nbsp;&nbsp;
+  <img src="./docs/assets/icons/communication-services.svg" width="48" alt="Azure Communication Services">
+</p>
+
+<p align="center">
+  <img src="./docs/assets/badges/version.svg" alt="Version v1.4.2">
+  <img src="./docs/assets/badges/ga.svg" alt="Voice Live API and Realtime API: GA">
+  <img src="./docs/assets/badges/public-preview.svg" alt="Foundry voice agents: Public preview">
+  <img src="./docs/assets/badges/live-tested.svg" alt="Live-tested: browser, Search, voice agent">
+  <img src="./docs/assets/badges/static-only.svg" alt="Static-only: ACS and Twilio live calls">
+</p>
+
+> [!NOTE]
+> **Start here.** This is the front door: it explains the three options, what gets deployed, and the fastest path to a running demo. Building it end to end? Go to [00 — Reproduce this demo](./docs/00-reproduce-this-demo.md). Browser, Search, and voice-agent paths were live-tested on 2026-09-29; ACS and Twilio live calls have not been exercised (see [`CHANGELOG.md`](./CHANGELOG.md)).
+
+## At a glance
+
+| | |
+|---|---|
+| <img src="./docs/assets/icons/speech.svg" width="20" alt="Voice Live"> **Voice Live API** | Managed speech-to-speech models, no model deployment. <img src="./docs/assets/badges/ga.svg" alt="GA"> |
+| <img src="./docs/assets/icons/azure-openai.svg" width="20" alt="Realtime"> **Realtime API** | You deploy and size a Global Standard realtime model. <img src="./docs/assets/badges/ga.svg" alt="GA"> |
+| <img src="./docs/assets/icons/foundry-agent-service.svg" width="20" alt="Voice agent"> **Foundry voice agent** | Versioned Foundry agent served by Voice Live in agent mode. <img src="./docs/assets/badges/public-preview.svg" alt="Public preview"> |
+| <img src="./docs/assets/icons/container-apps.svg" width="20" alt="Container Apps"> **Shape** | Three separate Container Apps, one shared Foundry resource, one shared bridge core. |
+| <img src="./docs/assets/icons/dev-console.svg" width="20" alt="Deploy"> **Deploy** | `scripts\demo.ps1 -Action Up` (PowerShell 7, Azure CLI, `azd`, Python 3.12+). |
+
 Reusable, generic Microsoft demo repo for comparing **three ways to build a contact-center voice agent** on Azure, with three minimal, reproducible, `azd`-deployable examples:
 
 1. **Azure AI Voice Live API** — managed speech-to-speech models, no model deployment.
@@ -12,18 +42,45 @@ All three reuse the same browser client, WebSocket bridge core, agent profile, R
 
 ---
 
+## What's inside
+
+[![Service catalog: the Azure services this demo uses, grouped by role](./docs/assets/service-catalog.png)](./docs/assets/service-catalog.png)
+
+<sub>Editable source: [`docs/assets/service-catalog.drawio`](./docs/assets/service-catalog.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
+
+<table align="center">
+  <tr>
+    <td align="center" width="140"><img src="./docs/assets/icons/speech.svg" width="40" alt="Voice Live"><br><sub><b>Voice Live</b><br>managed models</sub></td>
+    <td align="center" width="140"><img src="./docs/assets/icons/azure-openai.svg" width="40" alt="Realtime"><br><sub><b>Realtime</b><br>your deployment</sub></td>
+    <td align="center" width="140"><img src="./docs/assets/icons/foundry-agent-service.svg" width="40" alt="Foundry voice agent"><br><sub><b>Voice agent</b><br>versioned, preview</sub></td>
+    <td align="center" width="140"><img src="./docs/assets/icons/foundry.svg" width="40" alt="Foundry"><br><sub><b>Foundry</b><br>shared resource</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="140"><img src="./docs/assets/icons/container-apps.svg" width="40" alt="Container Apps"><br><sub><b>Container Apps</b><br>3 bridge apps</sub></td>
+    <td align="center" width="140"><img src="./docs/assets/icons/ai-search.svg" width="40" alt="AI Search"><br><sub><b>AI Search</b><br>40 articles</sub></td>
+    <td align="center" width="140"><img src="./docs/assets/icons/communication-services.svg" width="40" alt="Communication Services"><br><sub><b>ACS</b><br>optional phone</sub></td>
+    <td align="center" width="140"><img src="./docs/assets/icons/managed-identity.svg" width="40" alt="Managed identity"><br><sub><b>Managed identity</b><br>keyless auth</sub></td>
+  </tr>
+</table>
+
+---
+
 ## Comparing the three options
 
 ![Shared-mode solution architecture: callers, optional telephony, three Container Apps reusing the bridge core, one Foundry resource, and separate Azure AI Search](./docs/assets/diagrams/01-solution-architecture.png)
 
+<sub>Editable source: [`docs/assets/diagrams/01-solution-architecture.drawio`](./docs/assets/diagrams/01-solution-architecture.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
+
 ![Three ways to connect: what the bridge sends, the endpoint, the model or agent, and what limits capacity](./docs/assets/diagrams/02-three-ways-to-connect.png)
 
-*More diagrams: [phone call flow](./docs/assets/diagrams/03-phone-call-flow.png) · [deployment and regions](./docs/assets/diagrams/04-deployment-and-regions.png). Source: [architecture .drawio](./docs/assets/voice-live-vs-realtime-api-architecture.drawio) (4 pages), generated by `scripts\build-diagrams.py` and exported by `scripts\export-diagrams.ps1`.*
+<sub>Editable source: [`docs/assets/diagrams/02-three-ways-to-connect.drawio`](./docs/assets/diagrams/02-three-ways-to-connect.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
+
+*More diagrams: [phone call flow](./docs/assets/diagrams/03-phone-call-flow.png) ([source](./docs/assets/diagrams/03-phone-call-flow.drawio)) · [deployment and regions](./docs/assets/diagrams/04-deployment-and-regions.png) ([source](./docs/assets/diagrams/04-deployment-and-regions.drawio)).*
 
 | | Voice Live API | Realtime API | Foundry voice agent (preview) |
 |---|---|---|---|
 | **Example** | `examples\voice-live-api\` | `examples\realtime-api\` | `examples\foundry-voice-agent\` |
-| **Status** | GA | GA | **Public preview** — not for production |
+| **Status** | <img src="./docs/assets/badges/ga.svg" alt="GA"> | <img src="./docs/assets/badges/ga.svg" alt="GA"> | <img src="./docs/assets/badges/public-preview.svg" alt="Public preview"> — not for production |
 | **Where the agent is defined** | In the app (bridge sends instructions + tools each session) | In the app | A **versioned agent** in a Foundry project (instructions, tools, voice, greeting, audio pipeline); app sends **no session config** |
 | **Model** | Managed (`gpt-realtime-mini`, `gpt-realtime-2.1-mini`, …) | Your Global Standard deployment (`gpt-realtime-2.1-mini`, `gpt-realtime-mini`) | Managed (`gpt-realtime-2.1-mini`, `gpt-realtime-mini`, `gpt-realtime`) |
 | **Model deployment?** | **No** | **Yes** | **No** |
@@ -74,6 +131,17 @@ Full list with defaults and scope: [docs\09-environment-variables.md](./docs/09-
 ---
 
 ## 60-second quickstart
+
+> [!WARNING]
+> **Never rely on ambient `az` / `azd` login.** This tenant-explicit flow can target the wrong tenant or subscription if you skip it: always pass the tenant and subscription (`-TenantId` / `-SubscriptionId` below, or `az login --tenant` + `azd auth login --tenant-id` in the standalone path), and confirm with `az account show`. `Up` and the cloud resources it creates cost money; there is **no automatic rollback**.
+
+| Step | | Action | Gate |
+|---|---|---|---|
+| 1 | <img src="./docs/assets/icons/powershell.svg" width="28" alt="PowerShell"> | Install [prerequisites](./docs/02-prerequisites.md) and create the venv | ☐ `python --version` is 3.12+; `.venv` has `requirements-agent.txt` |
+| 2 | <img src="./docs/assets/icons/subscription.svg" width="28" alt="Subscription"> | Set `DemoName`, `TenantId`, `SubscriptionId` | ☐ `az account show` matches the intended tenant and subscription |
+| 3 | <img src="./docs/assets/icons/dev-console.svg" width="28" alt="Dry run"> | Run `demo.ps1 -Action Up ... -WhatIf` (offline dry run) | ☐ Order and targets look right; nothing was changed |
+| 4 | <img src="./docs/assets/icons/container-apps.svg" width="28" alt="Deploy"> | Run `demo.ps1 -Action Up` | ☐ Three browser URLs printed; `/healthz` and `/api/info` pass |
+| 5 | <img src="./docs/assets/icons/resource-group.svg" width="28" alt="Teardown"> | Run `demo.ps1 -Action Down` when finished | ☐ Four owned resource groups deleted |
 
 ### Recommended: shared deploy-all, including phone setup
 
@@ -185,7 +253,7 @@ These are the v1 baseline. Deviate only with an updated decision record and docs
 | 3 | Identity | **Managed identity plus `disableLocalAuth: true`** | Demonstrates keyless production posture; API keys are local-only escape hatches when a separate key-enabled resource is used. |
 | 4 | Scale shape | **One replica per app plus app-level admission control** | `MAX_CONCURRENT_SESSIONS` covers all channels on that app only. Browser overflow gets `busy` + `1013`; ACS/Twilio use configured overflow or reject/end the call; Asterisk sends `HANGUP` for dialplan fallback. No built-in human queue. |
 | 5 | Model defaults | **Voice Live `gpt-realtime-mini`; Realtime `gpt-realtime-2.1-mini`; voice agent `gpt-realtime-2.1-mini`** | Voice Live uses its GA Basic mini model by default; Realtime uses the GA mini with published pricing; the voice agent uses the managed 2.1-mini preview path to show agent-mode governance. |
-| 9 | Preview third option | **Foundry voice agent stores instructions/tools/voice; bridge owns audio and tool execution** | Keeps RAG, telephony, metrics, and the browser harness aligned while showing Foundry portal traces, stored artifacts, agent versions, and evaluations. |
+| 9 | Preview third option <img src="./docs/assets/badges/public-preview.svg" alt="Public preview"> | **Foundry voice agent stores instructions/tools/voice; bridge owns audio and tool execution** | Keeps RAG, telephony, metrics, and the browser harness aligned while showing Foundry portal traces, stored artifacts, agent versions, and evaluations. |
 | 6 | API client | **Raw WebSockets instead of SDKs** | Makes the bridge hooks line-comparable. Use the Voice Live SDK or Realtime WebRTC path for production where appropriate. |
 | 7 | Hosting | **Azure Container Apps with `azd` remote build** | Browser demo deploys with one command, no local Docker daemon required, and ACR remote build keeps the path reproducible. |
 | 8 | Bicep versions | **Pinned to API versions that local Bicep 0.43 builds cleanly** | Current templates use `Microsoft.CognitiveServices/accounts@2025-06-01`, `Microsoft.App/*@2025-07-01`, Log Analytics `2025-02-01`, ACR `2025-11-01`, Managed Identity `2024-11-30`, and role assignments `2022-04-01`. |
@@ -194,12 +262,18 @@ These are the v1 baseline. Deviate only with an updated decision record and docs
 
 ## When to use this demo
 
+> [!TIP]
+> Pick this demo when the goal is a like-for-like comparison: same client, same tools, same load probe, only the upstream changes.
+
 - You need a side-by-side browser voice-agent comparison where app code, UI, tools, and load probe are the same.
 - You want to show the operational difference between a managed Voice Live model, a Realtime API model deployment, and a governed Foundry voice-agent asset.
 - You need a reusable pattern for server-side tools, managed identity, app-side latency metrics, quota-aware admission control, and a preview agent-mode path.
 - You want an `azd` path that can be checked into ADO or GitHub and rebuilt in a clean tenant.
 
 ## When not to use this demo
+
+> [!CAUTION]
+> This is a comparison harness, not a production voice stack or a contact-center product.
 
 - You are building a production browser voice app and only need one API: evaluate WebRTC first for the Realtime API and the Voice Live SDK or accelerator patterns for Voice Live.
 - You need a full contact-center stack (IVR design, queues, agent desktops, CRM screen-pops): start from the appropriate voice accelerator. This repo's ACS/Twilio/Asterisk adapters are a minimal phone harness for comparing the three options on real calls, not a contact-center product.
@@ -227,7 +301,7 @@ All narrative documentation lives under `docs\`. The repo root holds only this R
 | [`docs\10-knowledge-base.md`](./docs/10-knowledge-base.md) | Synthetic knowledge base (40 articles, 30 request records), `knowledge\` azd project for Azure AI Search, and wiring the examples to it. |
 | `knowledge\` | Infra-only azd project: Azure AI Search + synthetic `knowledge` index (postprovision loads it). |
 | [`docs\09-environment-variables.md`](./docs/09-environment-variables.md) | Every deploy-time and runtime variable, with defaults, scope, and capacity-constraint guidance (`AZURE_APP_LOCATION`). |
-| `examples\foundry-voice-agent\` | Foundry voice agent (preview) example; agent created by `scripts\create-voice-agent.py`. |
+| `examples\foundry-voice-agent\` | Foundry voice agent (preview) example; agent created by `scripts\create-voice-agent.py`. <img src="./docs/assets/badges/public-preview.svg" alt="Public preview"> |
 | `platform\` | Infra-only azd project: one Foundry resource + realtime deployment + project, separate AI Search, optional ACS. |
 | `shared\voiceagent_core\telephony\` | ACS Call Automation, Twilio Media Streams, and Asterisk `chan_websocket` adapters, audio conversion, channel security. |
 | `shared\voiceagent_core\rag.py` | `knowledge_search` tool handler (Azure AI Search or local JSON). |
@@ -236,8 +310,8 @@ All narrative documentation lives under `docs\`. The repo root holds only this R
 | `scripts\enable-telephony.ps1` | Turn on phone channels (Asterisk, Twilio, ACS) for an example, generate their secrets, and write ready-to-copy Asterisk config after deploy. |
 | `scripts\probe-asterisk.py`, `scripts\probe-voice-agent.py` | Verify the Asterisk endpoint and the voice agent connection without a phone or browser. |
 | `scripts\use-shared-platform.ps1`, `scripts\configure-telephony.ps1`, `scripts\load-knowledge-index.py` | Wire an example to the platform, route phone numbers, load the index. |
-| [`docs\assets\voice-live-vs-realtime-api-architecture.drawio`](./docs/assets/voice-live-vs-realtime-api-architecture.drawio) | 4-page architecture source: solution architecture, three ways to connect, phone call flow, deployment and regions. |
-| `docs\assets\diagrams\*.png` | PNG exports embedded in the README and docs. Regenerate: `python scripts\build-diagrams.py` then `pwsh scripts\export-diagrams.ps1` (draw.io Desktop). |
+| `docs\assets\diagrams\0N-*.drawio` + `.png` | The four core diagrams (solution architecture, three ways to connect, phone call flow, deployment and regions): editable draw.io sources and the PNGs embedded in the README and docs. |
+| `docs\assets\*.drawio` + `.png` | Service catalog, prerequisites map, manual deployment steps, testing matrix, troubleshooting tree, comparison, configuration flow, knowledge-base flow. Regenerate any PNG with `python scripts\export_diagrams.py docs\assets` (and `docs\assets\diagrams`); draw.io Desktop required. |
 | [`docs\assets\comparison-one-pager.html`](./docs/assets/comparison-one-pager.html) | Browser-renderable comparison asset. |
 | [`docs\assets\comparison-one-pager.pdf`](./docs/assets/comparison-one-pager.pdf) | One-page HTML export. Regenerate with `pwsh scripts\export-comparison.ps1` (Microsoft Edge); print-copy links are disabled to avoid embedding local paths. |
 | `config\agent-profile.json` | Domain retargeting surface: assistant name, instructions, greeting, tools, handlers, and conversation settings. |
@@ -251,6 +325,13 @@ All narrative documentation lives under `docs\`. The repo root holds only this R
 
 Full detail is in [02-prerequisites.md](./docs/02-prerequisites.md). At minimum you need:
 
+<p>
+  <img src="./docs/assets/icons/powershell.svg" width="28" alt="PowerShell 7 and Azure CLI">&nbsp;
+  <img src="./docs/assets/icons/subscription.svg" width="28" alt="Azure subscription">&nbsp;
+  <img src="./docs/assets/icons/entra-id.svg" width="28" alt="Entra ID RBAC permissions">&nbsp;
+  <img src="./docs/assets/icons/azure-openai.svg" width="28" alt="Realtime quota">
+</p>
+
 - Azure CLI, `azd` 1.30+ (latest verified in the facts brief: 1.34.2), Bicep 0.43+, Python 3.12+, PowerShell 7, and a modern browser with microphone access.
 - Azure subscription permissions to create resources and assign RBAC: Contributor plus User Access Administrator, or Owner.
 - Resource providers registered for Container Apps, Cognitive Services, Container Registry, Log Analytics, and Managed Identity.
@@ -261,6 +342,9 @@ Full detail is in [02-prerequisites.md](./docs/02-prerequisites.md). At minimum 
 
 ## Distribution
 
+> [!IMPORTANT]
+> Never commit populated tenant IDs, subscription IDs, deployment IDs, `.env.local`, API keys, private keys, or secrets. `demo-ids.template.json` is the only committed ID file; populated values live in the gitignored `demo-ids.local.json`.
+
 This repo is intended to be checked into ADO or GitHub as a standalone reusable demo. `.gitignore` and `.dockerignore` exclude deployment state, local env files, Python caches, secrets, populated ID snapshots, and build outputs. `demo-ids.template.json` is safe to commit because it contains placeholders only; the populated copy is `demo-ids.local.json`, which is gitignored.
 
 `azd` keeps runtime values in `.azure\<environment>\.env`, which is also gitignored. Never commit populated tenant IDs, subscription IDs, deployment IDs, `.env.local`, API keys, private keys, or secrets. Pipeline/runtime credentials should come from the CI system secret store or Key Vault, not from files in the repo.
@@ -268,6 +352,9 @@ This repo is intended to be checked into ADO or GitHub as a standalone reusable 
 ---
 
 ## Reusing this demo for another domain
+
+> [!TIP]
+> The retargeting surface is two files: `config\agent-profile.json` and `config\sample-data.json`. No code fork needed.
 
 The reusable surface is intentionally small: edit `config\agent-profile.json` and `config\sample-data.json`; then re-run `azd hooks run postprovision` for `examples\foundry-voice-agent` so the Foundry agent version is refreshed. Keep `shared\`, `examples\`, `infra\`, `loadtest\`, and `tests\` unchanged. The one legitimate code extension is registering a new handler in `voiceagent_core.tools.HANDLERS` when the new domain needs a tool behavior beyond `record_lookup` or `current_time`.
 
@@ -280,7 +367,7 @@ See [Adapting this pattern to another domain](./docs/01-architecture.md#adapting
 | Accelerator | What this repo borrows | What is intentionally not copied |
 |---|---|---|
 | `Azure-Samples/call-center-voice-agent-accelerator` | Managed identity with `disableLocalAuth`, Azure semantic VAD, deep noise suppression, echo cancellation, 24 kHz browser audio, `azd` Container Apps remote build, and the production recommendation to evaluate the Voice Live SDK. | Telephony connectors, contact-center provider setup, avatar and custom-voice breadth, and its default cascaded model path. This repo keeps the comparison minimal and uses raw WebSockets for parity. |
-| `Azure-Samples/realtime-call-center-accelerator` | Server-side proxy pattern that keeps instructions and tools off the browser. | Deprecated preview endpoint `/openai/realtime?api-version=2024-10-01-preview&deployment=`, beta flat session schema, beta event names, ACS telephony complexity, manual app deploy script, stale Bicep shape, and the commented barge-in truncation task. |
+| `Azure-Samples/realtime-call-center-accelerator` | Server-side proxy pattern that keeps instructions and tools off the browser. | Deprecated preview endpoint <img src="./docs/assets/badges/deprecated.svg" alt="Deprecated"> `/openai/realtime?api-version=2024-10-01-preview&deployment=`, beta flat session schema, beta event names, ACS telephony complexity, manual app deploy script, stale Bicep shape, and the commented barge-in truncation task. |
 
 Verification URLs for those findings are recorded in `CHANGELOG.md` from the provided research files.
 
@@ -296,4 +383,4 @@ The release history for this and later changes is in [CHANGELOG.md](CHANGELOG.md
 
 ---
 
-*Last updated: 2026-09-30 (local documentation revision)*
+*Last updated: 2026-10-02*

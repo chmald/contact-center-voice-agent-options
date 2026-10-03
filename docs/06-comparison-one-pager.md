@@ -1,14 +1,43 @@
+[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 06 Comparison
+
 # Azure AI Voice Live API vs Azure OpenAI GPT Realtime API (GA deep dive)
+
+<p>
+<img src="./assets/icons/speech.svg" width="40" alt="Azure AI Voice Live"/>&nbsp;
+<img src="./assets/icons/azure-openai.svg" width="40" alt="Azure OpenAI GPT Realtime"/>&nbsp;
+<img src="./assets/icons/foundry-agent-service.svg" width="40" alt="Foundry Agent Service"/>&nbsp;
+<img src="./assets/icons/foundry-models.svg" width="40" alt="Foundry Models"/>&nbsp;
+<img src="./assets/icons/container-apps.svg" width="40" alt="Azure Container Apps"/>&nbsp;
+<img src="./assets/icons/managed-identity.svg" width="40" alt="Managed identity"/>
+</p>
+
+![version](./assets/badges/version.svg) ![GA](./assets/badges/ga.svg) ![Public preview](./assets/badges/public-preview.svg) ![Static only](./assets/badges/static-only.svg)
 
 **Bottom line:** this page is the two-GA-API deep dive. The repo now also includes a third option, a Foundry voice agent public preview; use the root README for the full three-way decision table. Same model family, same browser app, same Python bridge pattern — the practical difference is who manages model deployment, capacity/quota, voice/audio processing, and lifecycle risk.
 
-This page keeps the comparison intentionally narrow: two GA browser voice agents, both deployed to Azure Container Apps, both using managed identity, the same web client, the same shared Python core, and the same reusable agent profile. The only intentional differences are the upstream realtime API bridge and the infrastructure required to provision that API.
+This page keeps the comparison intentionally narrow: two GA browser voice agents, both deployed to Azure Container Apps, both using managed identity, the same web client, the same shared Python core, and the same reusable agent profile. The only intentional differences are the upstream realtime API bridge and the infrastructure required to provision that API. It is written for the architect choosing between the two GA APIs and for anyone forwarding the comparison to a customer.
+
+## At a glance
+
+| | Question | One-line answer |
+|---|---|---|
+| <img src="./assets/icons/speech.svg" width="24" alt=""/> | **Who manages the model?** | Voice Live: the service (no deployment). Realtime: you, via a Global Standard deployment |
+| <img src="./assets/icons/monitor.svg" width="24" alt=""/> | **What limits capacity?** | Voice Live: per-resource limits (100 new connections/min, <=120K TPM, <=60-minute sessions). Realtime: deployment quota in capacity units |
+| <img src="./assets/icons/code.svg" width="24" alt=""/> | **What changes in code?** | The URL, token scope, and session schema; everything else is the shared bridge ([What changes in the code](#what-changes-in-the-code)) |
+| <img src="./assets/icons/foundry-agent-service.svg" width="24" alt=""/> | **And the third option?** | Foundry voice agent, ![Public preview](./assets/badges/public-preview.svg): same Voice Live limits, agent owned by a Foundry project ([Third option](#third-option-foundry-voice-agent-public-preview)) |
+
+[![Voice Live API vs GPT Realtime API: side-by-side comparison with a recommendation](./assets/voice-live-vs-realtime-comparison.png)](./assets/voice-live-vs-realtime-comparison.png)
+
+<sub>Editable source: [`assets/voice-live-vs-realtime-comparison.drawio`](./assets/voice-live-vs-realtime-comparison.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
+
+> [!IMPORTANT]
+> Voice Live does not remove capacity planning. Per-call p90 TPM x concurrency must still fit the resource limits (or a support increase), just as Realtime must fit deployment quota. See [Capacity & quota implications](#capacity--quota-implications-for-a-contact-center).
 
 ## Which should I use?
 
 For production today, choose between these two GA API paths. Consider the Foundry voice agent preview only when you want to demonstrate governed agent assets, versions, traces, stored transcripts/audio, and evaluations, and can accept preview limitations.
 
-| Use Voice Live API when... | Use Realtime API when... | Foundry voice agent preview when... |
+| Use Voice Live API when... | Use Realtime API when... | Foundry voice agent ![Public preview](./assets/badges/public-preview.svg) when... |
 |---|---|---|
 | You want managed realtime models with no model deployment resource to create. | You need direct control of the deployed model version, deployment name, and upgrade behavior. | You want the agent definition to live as a versioned Foundry asset instead of app-only config. |
 | You prefer per-resource Voice Live limits over per-model Azure OpenAI deployment quota management. | You already have Azure OpenAI realtime quota, know the target region, and want to allocate deployment capacity yourself. | You can accept public preview and are not positioning it as production-ready. |
@@ -18,13 +47,27 @@ For production today, choose between these two GA API paths. Consider the Foundr
 | You are comfortable requesting a Voice Live new-connections/min increase when concurrency requires it. | You are comfortable managing lifecycle dates, quota requests, regional capacity, and the fact that PTU is not offered for realtime models. | You will re-run the postprovision hook after profile edits to publish a new agent version. |
 
 
-## Third option: Foundry voice agent (public preview)
+## <img src="./assets/icons/foundry-agent-service.svg" width="28" alt=""/> Third option: Foundry voice agent (public preview)
+
+![Public preview](./assets/badges/public-preview.svg)
+
+| | Aspect | Foundry voice agent (`examples\foundry-voice-agent\`) |
+|---|---|---|
+| <img src="./assets/icons/foundry-agent-service.svg" width="24" alt=""/> | Kind | ![Public preview](./assets/badges/public-preview.svg) Foundry Agent Service voice agent (`kind: voice`) built on Voice Live |
+| <img src="./assets/icons/speech.svg" width="24" alt=""/> | Route | `wss://<foundry>.services.ai.azure.com/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` with `Foundry-Features: VoiceAgents=V1Preview` |
+| <img src="./assets/icons/entra-id.svg" width="24" alt=""/> | Auth | Entra ID only |
+| <img src="./assets/icons/foundry-models.svg" width="24" alt=""/> | Model | Managed model default `gpt-realtime-2.1-mini` |
+| <img src="./assets/icons/code.svg" width="24" alt=""/> | Bridge behavior | Sends no session config (Agent Service rejects per-response instruction overrides); tools still run through the shared `ToolRegistry` |
 
 The third example, `examples\foundry-voice-agent\`, is a Foundry Agent Service voice agent (`kind: voice`) built on Voice Live. It uses the Foundry portal sample's route `wss://<foundry>.services.ai.azure.com/api/projects/<project>/agents/<agent>/endpoint/protocols/voice?api-version=2025-11-15-preview` with `Foundry-Features: VoiceAgents=V1Preview`, Entra ID only, and a managed model default of `gpt-realtime-2.1-mini`. The agent owns instructions, function-tool declarations, voice, greeting, audio pipeline, `store: true`, and versions in a Foundry project; the bridge sends no session config (Agent Service rejects per-response instruction overrides) and still executes tools through the shared `ToolRegistry`, so RAG behavior stays aligned.
 
 Capacity-wise, it behaves like Voice Live for this demo: no model deployment and no Azure OpenAI quota, but it shares the resource's Voice Live new-connection and TPM limits when run on the shared platform. Treat it as a preview governance/observability option, not a production replacement for the two GA API paths.
 
-> **PDF note:** [`assets/comparison-one-pager.pdf`](./assets/comparison-one-pager.pdf) is a concise, one-page export of [`assets/comparison-one-pager.html`](./assets/comparison-one-pager.html), not a reproduction of this longer Markdown deep dive. The HTML/PDF intentionally compare the two GA APIs with a preview callout for the third option. Regenerate from the repo root with `pwsh scripts\export-comparison.ps1` (Microsoft Edge). The print copy disables navigation links to avoid embedding local file paths; the HTML keeps its links.
+> [!WARNING]
+> The voice agent is public preview. Do not position it as a production replacement for the two GA API paths.
+
+> [!NOTE]
+> [`assets/comparison-one-pager.pdf`](./assets/comparison-one-pager.pdf) is a concise, one-page export of [`assets/comparison-one-pager.html`](./assets/comparison-one-pager.html), not a reproduction of this longer Markdown deep dive. The HTML/PDF intentionally compare the two GA APIs with a preview callout for the third option. Regenerate from the repo root with `pwsh scripts\export-comparison.ps1` (Microsoft Edge). The print copy disables navigation links to avoid embedding local file paths; the HTML keeps its links.
 
 ## Side-by-side comparison
 
@@ -32,7 +75,7 @@ Capacity-wise, it behaves like Voice Live for this demo: no model deployment and
 
 | Dimension | Voice Live API example | Realtime API example |
 |---|---|---|
-| Service, status, API version | Azure AI Speech Voice Live API; GA default `api-version=2026-07-15`. | Azure OpenAI GPT Realtime API GA `/openai/v1`; no date-based `api-version`. |
+| Service, status, API version | Azure AI Speech Voice Live API ![GA](./assets/badges/ga.svg); GA default `api-version=2026-07-15`. | Azure OpenAI GPT Realtime API GA `/openai/v1` ![GA](./assets/badges/ga.svg); no date-based `api-version`. |
 | Endpoint | `wss://<foundry>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>`; `cognitiveservices.azure.com` host also works. | `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>`; `model` is the Azure deployment name. |
 | What you provision | Standalone: own `Microsoft.CognitiveServices/accounts` kind `AIServices`, S0, custom subdomain, local auth disabled, and a Foundry project; no model deployment. Shared: reuse platform resource/project. | Standalone: same resource/project shape plus `Microsoft.CognitiveServices/accounts/deployments` for the realtime model. Shared: reuse platform resource/project/deployment. |
 | Model selection | Query string `model=<model>`; Voice Live manages the backing model. The demo's voice agent defaults to the project-scoped route described above; BYOM adds `profile=<mode>`. | Bicep creates a Global Standard deployment with `model.name`, `model.version`, `sku.capacity`, `versionUpgradeOption`, and `raiPolicyName`. |
@@ -140,7 +183,7 @@ The payloads below were rendered from the real bridge methods with default API s
 |---|---|---|
 | `build_url` | Converts `https://<foundry>.services.ai.azure.com` to `wss://<foundry>.services.ai.azure.com/voice-live/realtime?api-version=2026-07-15&model=<model>`. Existing `ws` / `wss` endpoints keep their query values when already set. | Converts `https://<resource>.openai.azure.com` to `wss://<resource>.openai.azure.com/openai/v1/realtime?model=<deployment>` and overwrites `model` with the deployment name. |
 | `build_headers` scope | `https://ai.azure.com/.default` with optional local-only `VOICE_LIVE_API_KEY`. | `AZURE_OPENAI_TOKEN_SCOPE`, default `https://ai.azure.com/.default`, with optional local-only `AZURE_OPENAI_API_KEY`. |
-| `build_session_update` | Flat schema, Azure voice object, Azure semantic VAD, deep noise suppression, echo cancellation, built-in transcription, `temperature`, `max_response_output_tokens`. | Nested GA schema, OpenAI voice string, semantic/server VAD, optional noise reduction, optional separate transcription deployment, `max_output_tokens`. |
+| `build_session_update` | Flat schema, Azure voice object, Azure semantic VAD, deep noise suppression, echo cancellation, built-in transcription, `temperature`, `max_response_output_tokens`. | ![GA](./assets/badges/ga.svg) Nested schema, OpenAI voice string, semantic/server VAD, optional noise reduction, optional separate transcription deployment, `max_output_tokens`. |
 | Event aliases | Shared base accepts both `response.audio.*` and `conversation.item.created`. | Shared base accepts both `response.output_audio.*` and `conversation.item.added`. |
 | Infra delta | Standalone creates `AIServices` plus a Foundry project; shared mode reuses them. Grants Cognitive Services User + Foundry User to the UAMI and deploying principal; no model deployment. | Adds a deployment resource in standalone mode (reuses the platform deployment in shared mode), `REALTIME_DEPLOYMENT_CAPACITY`, model version mapping, `versionUpgradeOption`, and Cognitive Services OpenAI User role assignments. |
 
@@ -167,7 +210,12 @@ Token-reduction levers are usually cheaper than quota: trim instructions and too
 
 **Confirm before you move:** get quota or Voice Live limit increases approved and visible, run the load probe at target concurrency, verify p90 TTFA and busy count in Log Analytics, and keep the current region/path as a rollback option until the bake-off passes.
 
-## Migration path
+## <img src="./assets/icons/gear.svg" width="28" alt=""/> Migration path
+
+| | Direction | Summary |
+|---|---|---|
+| <img src="./assets/icons/speech.svg" width="24" alt=""/> | Realtime API to Voice Live API | Swap endpoint/RBAC, drop the deployment, reshape `session.update` to the flat schema, map events, pick voice/VAD options, load test |
+| <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | Voice Live API to Realtime API ![GA](./assets/badges/ga.svg) | Add a realtime deployment, reshape to the nested GA schema, replace Azure-specific audio features, confirm quota/region/lifecycle |
 
 Realtime API to Voice Live API:
 
@@ -221,9 +269,15 @@ azd up
 
 After deployment, run the shared tests and load probe from [04-testing.md](04-testing.md); all three examples expose the same browser UI and `/ws` bridge so results are comparable.
 
-## Sources
+## <img src="./assets/icons/file.svg" width="28" alt=""/> Sources
 
 Verified 2026-09-25; re-verify model lifecycle, regions, quota, and pricing before customer use.
+
+| Topic | Where to re-check |
+|---|---|
+| Voice Live API | Reference, overview, release notes, quotas, regions and pricing pages (first six links below) |
+| Realtime API | How-to, WebRTC how-to, retirement schedule, quotas, quota management, region matrix and pricing (next links) |
+| Repo code | The bridges, Bicep resources, `azure.yaml` and example READMEs listed last |
 
 - Voice Live API reference: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/voice-live-api-reference-2026-07-15
 - Voice Live overview, models, features, and pricing tiers: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/voice-live
@@ -241,4 +295,8 @@ Verified 2026-09-25; re-verify model lifecycle, regions, quota, and pricing befo
 - Azure Retail Prices API: https://prices.azure.com/api/retail/prices
 - Repo code inspected: `examples\voice-live-api\src\voice_live_bridge.py`, `examples\realtime-api\src\realtime_api_bridge.py`, both `infra\modules\resources.bicep`, both `azure.yaml`, both example `README.md`, and `shared\voiceagent_core\bridge.py`.
 
-*Last updated: 2026-09-30 (local documentation revision)*
+---
+
+**Next:** [07 Telephony and shared endpoint](./07-telephony-and-shared-endpoint.md)
+
+*Last updated: 2026-10-02*

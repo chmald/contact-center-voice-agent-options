@@ -1,4 +1,22 @@
+[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 03 Deployment
+
 # 03 — Deployment
+
+<p>
+  <img src="./assets/icons/container-apps.svg" width="40" alt="Azure Container Apps">&nbsp;
+  <img src="./assets/icons/container-registry.svg" width="40" alt="Azure Container Registry">&nbsp;
+  <img src="./assets/icons/foundry.svg" width="40" alt="Microsoft Foundry">&nbsp;
+  <img src="./assets/icons/ai-search.svg" width="40" alt="Azure AI Search">&nbsp;
+  <img src="./assets/icons/communication-services.svg" width="40" alt="Azure Communication Services">
+</p>
+
+<p>
+  <img src="./assets/badges/version.svg" alt="Version v1.4.2">
+  <img src="./assets/badges/azd-up.svg" alt="azd up">
+  <img src="./assets/badges/default.svg" alt="Shared deploy-all is the default path">
+  <img src="./assets/badges/manual-path.svg" alt="Manual alternative: 03b">
+  <img src="./assets/badges/public-preview.svg" alt="Foundry voice agent: Public preview">
+</p>
 
 Recommended deployment: **`scripts\demo.ps1` provisions one shared Foundry resource, Search, and all three apps**, with optional phone-provider setup and scoped teardown. The three examples deploy side by side to Azure Container Apps and differ only in the upstream API they call:
 
@@ -6,8 +24,24 @@ Recommended deployment: **`scripts\demo.ps1` provisions one shared Foundry resou
 - `examples\realtime-api\` → Azure OpenAI GPT Realtime API GA.
 - `examples\foundry-voice-agent\` → Foundry voice agent public preview (served by Voice Live agent mode).
 
+## At a glance
+
+| | Step | Gate |
+|---|---|---|
+| <img src="./assets/icons/entra-id.svg" width="28" alt="Authenticate"> | **1.** Authenticate `az` and `azd` to an explicit tenant and subscription | ☐ `az account show` matches the target |
+| <img src="./assets/icons/powershell.svg" width="28" alt="Install"> | **2.** Install dependencies in `.venv` | ☐ `requirements-agent.txt` installed |
+| <img src="./assets/icons/dev-console.svg" width="28" alt="Dry run"> | **3.** `demo.ps1 -Action Up ... -WhatIf` (offline dry run) | ☐ Order and targets are as intended |
+| <img src="./assets/icons/container-apps.svg" width="28" alt="Deploy"> | **4.** `demo.ps1 -Action Up` | ☐ Three browser URLs printed; `/healthz` and `/api/info` pass |
+| <img src="./assets/icons/communication-services.svg" width="28" alt="Phones"> | **5.** Phone handoff (optional) | ☐ Provider and PBX configuration completed by you |
+| <img src="./assets/icons/resource-group.svg" width="28" alt="Teardown"> | **6.** `demo.ps1 -Action Down` | ☐ Four owned resource groups removed |
+
+> [!WARNING]
+> **Tenant-explicit `az` / `azd` authentication is mandatory.** The active `az` and `azd` accounts silently drift across tenants and subscriptions; a bare `az login` or `azd up` can provision into the wrong place. Always sign in with `az login --tenant`, `az account set --subscription`, `az account show`, and `azd auth login --tenant-id` (the wrapper does this for you from `-TenantId` / `-SubscriptionId`).
+
+> [!NOTE]
 > **No-IaC alternative.** If the environment cannot run `azd` or Bicep, use [03b-manual-deployment.md](./03b-manual-deployment.md). It creates the same resource shape with Azure Portal and imperative Azure CLI commands.
 
+> [!TIP]
 > **Windows paths.** Commands below assume PowerShell on Windows. Keep backslash paths.
 
 ---
@@ -15,6 +49,8 @@ Recommended deployment: **`scripts\demo.ps1` provisions one shared Foundry resou
 ## Recommended shared deploy-all
 
 ![Deployment and regions](./assets/diagrams/04-deployment-and-regions.png)
+
+<sub>Editable source: [`assets/diagrams/04-deployment-and-regions.drawio`](./assets/diagrams/04-deployment-and-regions.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
 
 **Diagram scope:** the image matches this recommended shared path. The platform creates the Foundry resource/project/realtime deployment and owns the realtime quota pre-flight (`platform/hooks/preprovision.ps1`); the Realtime app's hook skips that check when `SHARED_FOUNDRY_NAME` is set. Each app keeps its own app tier and admission counter. Shared is **one Foundry resource, not one literal URL or quota pool**. Search is always included by the wrapper; telephony is opt-in, with ACS created only if selected. **Do not deploy `knowledge\` separately.** The standalone phases later in this guide remain an alternative, not extra shared-deployment steps.
 
@@ -49,7 +85,7 @@ Select only the providers you intend to configure; omitting `-Telephony` gives a
 | `-Action` | `Up`, `Phones`, or `Down`. |
 | `-DemoName` | Required. 3–20 lowercase letters/digits/hyphens, starting with a letter and ending alphanumeric. Example: `voice-demo`. |
 | `-TenantId`, `-SubscriptionId` | Required explicit target GUIDs for all actions. |
-| `-Location` | `Up`: `centralus`; allowed AI regions: `centralus`, `eastus2`, `swedencentral`. |
+| `-Location` | `Up`: `centralus` <img src="./assets/badges/default.svg" alt="Default">; allowed AI regions: `centralus`, `eastus2`, `swedencentral`. |
 | `-AppLocation` | `Up`: same as AI region when omitted. Example override: `eastus2`, applied to all three app tiers. |
 | `-RealtimeCapacity` | Initial deployment: `10` capacity units; existing model defaults are retained. |
 | `-Telephony` | `Up`: none by default; comma-separated selection such as `'acs,twilio,asterisk'`. |
@@ -188,7 +224,7 @@ Container App environment variables set by Bicep are exactly: `VOICE_LIVE_ENDPOI
 | `SERVICE_WEB_NAME` | `resources.bicep` | Container App name |
 | `SERVICE_WEB_URI` | `resources.bicep` | Public HTTPS URL |
 | `AZURE_OPENAI_ENDPOINT` | `resources.bicep` | `https://<foundry>.openai.azure.com` |
-| `AZURE_OPENAI_REALTIME_DEPLOYMENT` | `resources.bicep` | Deployment name used in the GA `model=` query |
+| `AZURE_OPENAI_REALTIME_DEPLOYMENT` | `resources.bicep` | Deployment name used in the GA <img src="./assets/badges/ga.svg" alt="GA"> `model=` query |
 | `AZURE_OPENAI_REALTIME_MODEL` | `main.bicep` | Active model label |
 | `AZURE_OPENAI_REALTIME_MODEL_VERSION` | `resources.bicep` | Resolved model version |
 | `REALTIME_VOICE` | `main.bicep` | Active Realtime voice |
@@ -229,7 +265,8 @@ Container App environment variables set by Bicep are exactly: `VOICE_AGENT_ENDPO
 
 **Standalone/manual path only.** Shared deploy-all handles this authentication gate itself; do not create a second set of environments by repeating Phases 0–4 after `Up`.
 
-> **Do this first every time.** This repo is intended for multi-tenant work. Never run a bare `az login` or trust ambient `azd` state before token acquisition or resource writes.
+> [!WARNING]
+> **Do this first every time.** Never run a bare `az login` or trust ambient `azd` state before token acquisition or resource writes; the active tenant and subscription can differ from the one you intend.
 
 Set target values:
 
@@ -744,6 +781,9 @@ az cognitiveservices account purge --name <account-name> --resource-group <delet
 
 ## Post-deployment checklist
 
+> [!NOTE]
+> Tick every box before a customer walkthrough; the smoke test proves the app, not upstream audio or real calls.
+
 - [ ] Voice Live, Realtime API, and Foundry voice agent were deployed to the same Tier-1 region for side-by-side testing.
 - [ ] Browser smoke test passed for all deployed examples.
 - [ ] Local run passed for at least one example.
@@ -751,6 +791,8 @@ az cognitiveservices account purge --name <account-name> --resource-group <delet
 - [ ] Troubleshooting runbook in [05-troubleshooting.md](./05-troubleshooting.md) is available during the demo.
 - [ ] Teardown command and purge behavior are understood before creating throwaway environments.
 
+**Next:** prefer the portal/CLI route? See [03b — Manual deployment](./03b-manual-deployment.md); otherwise continue with [04 — Testing](./04-testing.md).
+
 ---
 
-*Last updated: 2026-09-30 (local documentation revision)*
+*Last updated: 2026-10-02*

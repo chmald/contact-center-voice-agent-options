@@ -1,9 +1,28 @@
+[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 03b Manual deployment
+
 # 03b — Manual Deployment (No azd or Bicep)
+
+<p>
+  <img src="./assets/icons/resource-group.svg" width="40" alt="Resource group">&nbsp;
+  <img src="./assets/icons/container-registry.svg" width="40" alt="Azure Container Registry">&nbsp;
+  <img src="./assets/icons/managed-identity.svg" width="40" alt="Managed identity">&nbsp;
+  <img src="./assets/icons/foundry.svg" width="40" alt="Microsoft Foundry">&nbsp;
+  <img src="./assets/icons/container-apps.svg" width="40" alt="Azure Container Apps">
+</p>
+
+<p>
+  <img src="./assets/badges/version.svg" alt="Version v1.4.2">
+  <img src="./assets/badges/manual-path.svg" alt="Manual path">
+  <img src="./assets/badges/diy.svg" alt="DIY">
+  <img src="./assets/badges/optional.svg" alt="Optional alternative to azd">
+</p>
 
 Manual deployment path for customers who cannot run `azd`, ARM, or Bicep. It produces the same **resource kinds, role assignments, container image shape, ingress, identity model, and application environment variables** as [03-deployment.md](./03-deployment.md), using Azure Portal and imperative Azure CLI commands.
 
+> [!TIP]
 > **Use the IaC path when you can.** Manual deployment usually takes ~45-60 minutes. The `azd` path usually takes ~10-15 minutes per example and is less error-prone.
 
+> [!IMPORTANT]
 > **After manual provisioning.** Anything `azd` normally writes to `.azure\<env>\.env` must be populated by hand into `examples\<ex>\.env.local` for local runs and into `demo-ids.local.json` for human reference.
 
 This document only replaces the provisioning phases. For smoke testing, local runs, and load testing, use:
@@ -15,19 +34,26 @@ This document only replaces the provisioning phases. For smoke testing, local ru
 
 ## Phase overview
 
-| Phase | What you build manually | Typical time | Validation at end |
-|---|---|---:|---|
-| 0 | Authenticate to the intended tenant and subscription | 2-5 min | `az account show` matches target |
-| 1 | Shared variables and naming | 5 min | One consistent suffix is set |
-| 2 | Base Azure resources | 20-30 min | RG, Log Analytics, ACA environment, ACR, and identity exist |
-| 3 | API-specific Foundry account, RBAC, and optional Realtime model deployment | 15-20 min | Roles and deployment exist |
-| 4 | Remote image build from repo root | 5-10 min | ACR contains the app image |
-| 5 | Container App create | 10 min | HTTPS endpoint responds |
-| 6 | Hand-populate local deployment files | 5 min | `.env.local` and `demo-ids.local.json` are usable |
+[![Manual deployment steps](./assets/manual-deployment-steps.png)](./assets/manual-deployment-steps.png)
+
+<sub>Editable source: [`assets/manual-deployment-steps.drawio`](./assets/manual-deployment-steps.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
+
+| Step | | What you build manually | Typical time | Gate |
+|---|---|---|---:|---|
+| **Phase 0** | <img src="./assets/icons/entra-id.svg" width="28" alt="Authenticate"> | Authenticate to the intended tenant and subscription | 2-5 min | ☐ `az account show` matches target |
+| **Phase 1** | <img src="./assets/icons/gear.svg" width="28" alt="Variables"> | Shared variables and naming | 5 min | ☐ One consistent suffix is set |
+| **Phase 2** | <img src="./assets/icons/resource-group.svg" width="28" alt="Base resources"> | Base Azure resources | 20-30 min | ☐ RG, Log Analytics, ACA environment, ACR, and identity exist |
+| **Phase 3** | <img src="./assets/icons/foundry.svg" width="28" alt="Foundry"> | API-specific Foundry account, RBAC, and optional Realtime model deployment | 15-20 min | ☐ Roles and deployment exist |
+| **Phase 4** | <img src="./assets/icons/container-registry.svg" width="28" alt="Image build"> | Remote image build from repo root | 5-10 min | ☐ ACR contains the app image |
+| **Phase 5** | <img src="./assets/icons/container-apps.svg" width="28" alt="Container App"> | Container App create | 10 min | ☐ HTTPS endpoint responds |
+| **Phase 6** | <img src="./assets/icons/file.svg" width="28" alt="Local files"> | Hand-populate local deployment files | 5 min | ☐ `.env.local` and `demo-ids.local.json` are usable |
 
 ---
 
 ## Phase 0 — Authenticate to the right tenant
+
+> [!WARNING]
+> **Tenant-explicit `az` authentication is mandatory.** The active `az` account silently drifts across tenants and subscriptions; a bare `az login` can create resources in the wrong place. Sign in with `az login --tenant`, pin the subscription with `az account set`, and confirm with `az account show` **before any create command**. If you also use `azd` elsewhere in the repo, run `azd auth login --tenant-id <TENANT_ID>` for the same tenant.
 
 Run the same tenant-explicit auth gate as the IaC path:
 
@@ -90,6 +116,15 @@ $PrincipalId = az ad signed-in-user show --query id -o tsv
 ---
 
 ## Phase 2 — Base Azure resources
+
+| Step | | Resource | Gate |
+|---|---|---|---|
+| **2.1** | <img src="./assets/icons/resource-group.svg" width="28" alt="Resource group"> | Resource group | ☐ `$Rg` exists |
+| **2.2** | <img src="./assets/icons/log-analytics.svg" width="28" alt="Log Analytics"> | Log Analytics workspace | ☐ Workspace ID and key captured |
+| **2.3** | <img src="./assets/icons/container-apps-environment.svg" width="28" alt="Container Apps environment"> | Container Apps environment | ☐ Environment attached to the workspace |
+| **2.4** | <img src="./assets/icons/container-registry.svg" width="28" alt="Container Registry"> | Azure Container Registry | ☐ Basic SKU, admin user disabled |
+| **2.5** | <img src="./assets/icons/managed-identity.svg" width="28" alt="Managed identity"> | User-assigned managed identity | ☐ Client and principal IDs captured |
+| **2.6** | <img src="./assets/icons/keys.svg" width="28" alt="Role assignment"> | `AcrPull` role assignment | ☐ Identity can pull from ACR |
 
 ### 2.1 Resource group
 
@@ -161,6 +196,12 @@ az role assignment create --assignee-object-id $IdentityPrincipalId --assignee-p
 
 ## Phase 3 — API-specific Foundry account, RBAC, and model deployment
 
+| Step | | Resource | Gate |
+|---|---|---|---|
+| **3.1** | <img src="./assets/icons/foundry.svg" width="28" alt="Foundry"> | Foundry `AIServices` account | ☐ Custom subdomain set, local auth disabled |
+| **3.2** | <img src="./assets/icons/keys.svg" width="28" alt="Role assignments"> | Role assignments (and voice-agent project/version) | ☐ Roles for the chosen example are present |
+| **3.3** | <img src="./assets/icons/azure-openai.svg" width="28" alt="Realtime deployment"> | Realtime model deployment (`realtime-api` only) | ☐ Deployment listed by `az cognitiveservices account deployment list` |
+
 ### 3.1 Foundry AIServices account
 
 ```powershell
@@ -223,6 +264,7 @@ python scripts\create-voice-agent.py --project-endpoint $ProjectEndpoint --agent
 
 **Portal equivalent:** Foundry or Azure AI Services account → Access control (IAM) → Add role assignment → select the role by name → assign to managed identity `$IdentityName` and to the deployer user.
 
+> [!NOTE]
 > RBAC propagation can take 5-10 minutes. If the app or local run returns 401/403 immediately after role assignment, wait and retry before changing configuration.
 
 ### 3.3 Realtime only: model deployment
@@ -273,6 +315,12 @@ az acr build --registry $AcrName --image $ImageTag -f "examples\$Example\Dockerf
 ---
 
 ## Phase 5 — Create the Container App
+
+| Step | | Variant (pick the one matching `$Example`) | Gate |
+|---|---|---|---|
+| **5.1** | <img src="./assets/icons/speech.svg" width="28" alt="Voice Live"> | `voice-live-api` container app | ☐ `/healthz` returns `status: ok` |
+| **5.2** | <img src="./assets/icons/azure-openai.svg" width="28" alt="Realtime API"> | `realtime-api` container app | ☐ `/api/info` reports Realtime API |
+| **5.3** | <img src="./assets/icons/foundry-agent-service.svg" width="28" alt="Voice agent"> | `foundry-voice-agent` container app | ☐ `/api/info` reports the Foundry voice agent |
 
 ### 5.1 Voice Live container app
 
@@ -335,6 +383,11 @@ curl.exe "$ServiceWebUri/api/info"
 
 ## Optional — Enable phone channels by hand
 
+<img src="./assets/icons/communication-services.svg" width="28" alt="Phone channels"> <img src="./assets/badges/optional.svg" alt="Optional">
+
+> [!CAUTION]
+> Secrets must be stored as Container Apps secrets and referenced with `secretref:`; never put them in plain env values, Bicep outputs, or committed files.
+
 Equivalent of `scripts\enable-telephony.ps1` for a Container App created manually. Generate each secret
 (32 random bytes, URL-safe):
 
@@ -360,6 +413,8 @@ Put `$asteriskSecret` in Asterisk's `websocket_client.conf` as `password` (see
 [07 §7](07-telephony-and-shared-endpoint.md#7-connect-asterisk-directly-over-wss-no-twilio)).
 For Twilio add `twilio-auth-token=<token>` / `TWILIO_AUTH_TOKEN=secretref:twilio-auth-token`; for ACS add
 `acs-eventgrid-secret=$(New-Secret)` / `ACS_EVENTGRID_SECRET=secretref:acs-eventgrid-secret` plus `ACS_ENDPOINT`.
+
+---
 
 ## Phase 6 — Populate local deployment files by hand
 
@@ -435,6 +490,8 @@ Also copy `demo-ids.template.json` to `demo-ids.local.json` and fill in the corr
 - [ ] No populated `.env.local` or `demo-ids.local.json` file is committed.
 - [ ] Continue with smoke tests and local-run checks in [03-deployment.md](./03-deployment.md).
 
+**Next:** [04 — Testing](./04-testing.md).
+
 ---
 
-*Last updated: 2026-09-29*
+*Last updated: 2026-10-02*

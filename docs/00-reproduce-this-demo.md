@@ -1,8 +1,39 @@
+[README](../README.md) › 00 Reproduce this demo
+
 # 00 — Reproduce this demo: one shared resource, three ways to connect
+
+<p>
+  <img src="./assets/icons/subscription.svg" width="40" alt="Azure subscription">&nbsp;
+  <img src="./assets/icons/foundry.svg" width="40" alt="Microsoft Foundry">&nbsp;
+  <img src="./assets/icons/container-apps.svg" width="40" alt="Azure Container Apps">&nbsp;
+  <img src="./assets/icons/ai-search.svg" width="40" alt="Azure AI Search">&nbsp;
+  <img src="./assets/icons/communication-services.svg" width="40" alt="Azure Communication Services">
+</p>
+
+<p>
+  <img src="./assets/badges/version.svg" alt="Version v1.4.2">
+  <img src="./assets/badges/azd-up.svg" alt="azd up">
+  <img src="./assets/badges/default.svg" alt="Shared path is the default">
+  <img src="./assets/badges/optional.svg" alt="Phone channels are optional">
+  <img src="./assets/badges/public-preview.svg" alt="Foundry voice agent: Public preview">
+</p>
 
 Recommended path: deploy **one shared Foundry resource and three app instances**, with a Search-backed knowledge base and optional ACS, Twilio, and Asterisk phone channels, from a clean clone. Use `scripts\demo.ps1` for deployment and teardown; the per-example standalone procedure remains an explicit alternative below.
 
+## At a glance
+
+| | Item | Detail |
+|---|---|---|
+| <img src="./assets/icons/dev-console.svg" width="20" alt="Wrapper"> | Entry point | `scripts\demo.ps1 -Action Up` / `Phones` / `Down` |
+| <img src="./assets/icons/resource-group.svg" width="20" alt="Resource groups"> | Footprint | Four owned resource groups: platform, Voice Live, Realtime, voice agent |
+| <img src="./assets/icons/cost-management.svg" width="20" alt="Time budget"> | Time budget | Roughly 75–110 minutes for first-time deployment and validation |
+| <img src="./assets/icons/entra-id.svg" width="20" alt="Auth"> | Auth | Tenant-explicit `az` and `azd` sign-in; Contributor + User Access Administrator, or Owner |
+
+> [!NOTE]
 > **Time budget.** Allow roughly **75–110 minutes** for first-time deployment and validation; capacity, provider registration, phone-number acquisition, and external PBX/provider setup can add time. The wrapper does not remove those prerequisites.
+
+> [!WARNING]
+> Never rely on ambient `az` / `azd` login: the active account can silently point at a different tenant or subscription. Pass the tenant and subscription explicitly and confirm with `az account show`. Successful stages persist and **cost money** until torn down; there is no automatic rollback.
 
 ---
 
@@ -19,6 +50,9 @@ The wrapper always loads **40 articles** into the platform's Search index. The *
 ---
 
 ## Prerequisites checklist
+
+> [!IMPORTANT]
+> Register `Microsoft.Search` as well as the core providers, plus `Microsoft.Communication` and `Microsoft.EventGrid` when using ACS, before the first `Up`.
 
 Full detail is in [02-prerequisites.md](./02-prerequisites.md).
 
@@ -101,6 +135,15 @@ Choose only the phone providers you need; omitting `-Telephony` enables none. `-
 ---
 
 ## Standalone alternative — Parts A–D2
+
+> [!CAUTION]
+> **Do not run Parts A–D2 after shared deploy-all.** They create separate Foundry resources and would duplicate cost and quota use.
+
+| | Part | Creates |
+|---|---|---|
+| <img src="./assets/icons/speech.svg" width="20" alt="Voice Live"> | B | Voice Live example with its own Foundry resource |
+| <img src="./assets/icons/azure-openai.svg" width="20" alt="Realtime"> | C | Realtime example with its own Foundry resource and model deployment |
+| <img src="./assets/icons/foundry-agent-service.svg" width="20" alt="Voice agent"> | D | Foundry voice agent example (<img src="./assets/badges/public-preview.svg" alt="Public preview">) |
 
 These steps create separate Foundry resources. **Do not run them after shared deploy-all.** Install the local dependencies from S1 first; use fresh standalone environment names.
 
@@ -378,16 +421,18 @@ Only add `--purge` if you deliberately want irreversible purge behavior. Check s
 
 ## Single-page checklist
 
-| Part | What | Done |
-|---|---|---|
-| S1–S2 | Recommended: install dependencies, preview, then deploy platform/Search + all three apps with explicit tenant/subscription. | [ ] |
-| S3 | Complete selected phone-provider/PBX setup; acquire ACS number separately and run `Phones` if needed. | [ ] |
-| A–D2 | **Alternative only:** standalone deployments and optional separate knowledge/phone setup, instead of S2–S3. | [ ] |
-| E | Smoke test browser, text turn, and tool turn on all three. | [ ] |
-| F | Run 1, 4, 10, and 20 session load probes on all three. | [ ] |
-| G | Repeat with the same model when quota and region support allow it. | [ ] |
-| H | Shared: scoped `Down`; standalone: selected per-example teardown. Purge is a separate opt-in; clean up external phone billing. | [ ] |
+| | Part | What | Done |
+|---|---|---|---|
+| <img src="./assets/icons/dev-console.svg" width="28" alt="Install and deploy"> | S1–S2 | Recommended: install dependencies, preview, then deploy platform/Search + all three apps with explicit tenant/subscription. <img src="./assets/badges/azd-up.svg" alt="azd up"> | [ ] |
+| <img src="./assets/icons/communication-services.svg" width="28" alt="Phones"> | S3 | Complete selected phone-provider/PBX setup; acquire ACS number separately and run `Phones` if needed. | [ ] |
+| <img src="./assets/icons/container-apps.svg" width="28" alt="Standalone"> | A–D2 | **Alternative only:** standalone deployments and optional separate knowledge/phone setup, instead of S2–S3. | [ ] |
+| <img src="./assets/icons/speech.svg" width="28" alt="Smoke test"> | E | Smoke test browser, text turn, and tool turn on all three. | [ ] |
+| <img src="./assets/icons/monitor.svg" width="28" alt="Load probe"> | F | Run 1, 4, 10, and 20 session load probes on all three. | [ ] |
+| <img src="./assets/icons/azure-openai.svg" width="28" alt="Bake-off"> | G | Repeat with the same model when quota and region support allow it. | [ ] |
+| <img src="./assets/icons/resource-group.svg" width="28" alt="Teardown"> | H | Shared: scoped `Down`; standalone: selected per-example teardown. Purge is a separate opt-in; clean up external phone billing. | [ ] |
+
+**Next:** [01 — Architecture](01-architecture.md), then [02 — Prerequisites](02-prerequisites.md) and [03 — Deployment](03-deployment.md).
 
 ---
 
-*Last updated: 2026-09-30 (local documentation revision)*
+*Last updated: 2026-10-02*
