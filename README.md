@@ -1,4 +1,6 @@
-# Voice Live API vs. GPT Realtime API vs. Foundry voice agents
+# Contact-center voice agent options: Voice Live API vs. GPT Realtime API vs. Foundry voice agents
+
+> Formerly published as `azure-voice-options-demo`. Old links redirect automatically.
 
 <p align="center">
   <img src="./docs/assets/icons/speech.svg" width="48" alt="Azure AI Speech (Voice Live)">&nbsp;&nbsp;
@@ -383,4 +385,4 @@ The release history for this and later changes is in [CHANGELOG.md](CHANGELOG.md
 
 ---
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-10-07*

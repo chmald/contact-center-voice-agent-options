@@ -4,6 +4,14 @@ Change history for the reusable demo pattern. Entries are newest-first.
 
 ---
 
+## [Unreleased] - 2026-10-07
+
+### Changed
+
+- GitHub repository renamed from `azure-voice-options-demo` to `contact-center-voice-agent-options` to name the use case. Old links redirect automatically. README title updated; no code, Azure resource, or environment names changed.
+
+---
+
 ## [1.4.2] - 2026-09-29
 
 ### Added
