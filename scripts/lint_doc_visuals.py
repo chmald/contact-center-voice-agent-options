@@ -20,7 +20,7 @@ Warnings
   status      a table mentions GA/Preview in text but carries no badge image
 
     python lint_doc_visuals.py                      # from the demo root
-    python lint_doc_visuals.py --root C:\\Users\\me\\Demos\\my-pattern --strict
+    python lint_doc_visuals.py --root <repo-root> --strict
 """
 from __future__ import annotations
 
