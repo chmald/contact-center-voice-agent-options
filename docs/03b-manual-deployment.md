@@ -17,7 +17,7 @@
   <img src="./assets/badges/optional.svg" alt="Optional alternative to azd">
 </p>
 
-Manual deployment path for customers who cannot run `azd`, ARM, or Bicep. It produces the same **resource kinds, role assignments, container image shape, ingress, identity model, and application environment variables** as [03-deployment.md](./03-deployment.md), using Azure Portal and imperative Azure CLI commands.
+Manual deployment path for teams who cannot run `azd`, ARM, or Bicep. It produces the same **resource kinds, role assignments, container image shape, ingress, identity model, and application environment variables** as [03-deployment.md](./03-deployment.md), using Azure Portal and imperative Azure CLI commands.
 
 > [!TIP]
 > **Use the IaC path when you can.** Manual deployment usually takes ~45-60 minutes. The `azd` path usually takes ~10-15 minutes per example and is less error-prone.

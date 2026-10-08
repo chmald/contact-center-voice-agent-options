@@ -185,7 +185,7 @@ The root README has the three-way comparison, while [`06-comparison-one-pager.md
 | `examples\*\infra\modules\resources.bicep` | Standalone: own Foundry resource with project management, project, and role assignments; no model deployment. Shared: reuses platform resource/project. | Standalone: own Foundry resource with project management, project, and `accounts/deployments` realtime model. Shared: reuses platform resource/project/deployment. | Standalone: own Foundry resource with `allowProjectManagement: true`, system identity, and a `Microsoft.CognitiveServices/accounts/projects@2025-06-01` project. Shared: reuses platform resource/project. |
 | `examples\*\infra\main.parameters.json` | Uses `VOICE_LIVE_MODEL`, `VOICE_LIVE_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `AZURE_OPENAI_REALTIME_MODEL`, `AZURE_OPENAI_REALTIME_MODEL_VERSION`, `AZURE_OPENAI_REALTIME_DEPLOYMENT`, `REALTIME_DEPLOYMENT_CAPACITY`, `REALTIME_VERSION_UPGRADE_OPTION`, `REALTIME_VOICE`, and `MAX_CONCURRENT_SESSIONS`. | Uses `VOICE_AGENT_MODEL`, `VOICE_AGENT_VOICE`, `VOICE_AGENT_NAME`, `VOICE_AGENT_PROJECT_NAME`, shared-project values, and `MAX_CONCURRENT_SESSIONS`. |
 
-Everything else should remain shared unless a future decision record says otherwise.
+Everything else should remain shared unless the locked decisions change.
 
 ---
 
@@ -225,7 +225,7 @@ Primary measurements:
 ## Decisions with rationale
 
 > [!NOTE]
-> Each decision below is also summarized in the README's locked-decisions table; change them only with an updated decision record.
+> Each decision below is also summarized in the README's locked-decisions table; change them only by updating that table and these docs together.
 
 ### Server-side WebSocket bridge
 

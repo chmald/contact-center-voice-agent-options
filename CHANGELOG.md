@@ -13,6 +13,7 @@ Change history for the reusable demo pattern. Entries are newest-first.
 ### Changed
 
 - GitHub repository renamed from `azure-voice-options-demo` to `contact-center-voice-agent-options` to name the use case. Old links redirect automatically. README title updated; no code, Azure resource, or environment names changed.
+- Docs: rewrote for external audiences; removed internal terminology. The walkthrough script column is now "Presenter notes", audience-specific wording is addressed to the reader, decision-record references point at the README locked-decisions table, and the diagram legend reads "preview API or feature (not GA)" (PNGs re-exported). `tests\test_reusability_guards.py` gains `test_no_internal_terminology`. The committed `comparison-one-pager.pdf` was not regenerated in this change.
 
 ---
 

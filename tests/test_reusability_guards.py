@@ -118,3 +118,28 @@ def test_no_secret_patterns(repo_root):
         if api_key_literal.search(text) or "AccountKey=" in text or "-----BEGIN" in text:
             hits.append(str(path.relative_to(repo_root)))
     assert hits == []
+
+
+# Internal authoring-tool names and sales/process jargon have no meaning for readers outside
+# the original authoring team, so they must not appear in published files.
+INTERNAL_TERMS = re.compile(
+    r"demo-pattern-authoring|azure-architecture-diagrams|daily[_ ]?driver|MCAPS|\bMCEM\b|\bMSX\b|\bTPID\b|\bCSAM\b"
+    r"|hard[- ]rules?\s*#|authoring gate|Copilot CLI session|\bSolution Engineers?\b|\bsellers?\b|\baccount team\b"
+    r"|hands-on-keyboard|Technical Close Plan|\bwin plan\b|\bsolution play\b|\bMACC\b|Azure Consumed Revenue"
+    r"|consumption uplift|Tech Elevate|Cloud Accelerate Factory|Viva Engage|\bSeismic\b|microsoft\.sharepoint\.com"
+    r"|\binternal[- ]only\b|Microsoft[- ]internal|not for customer distribution|\btalk track\b",
+    re.IGNORECASE,
+)
+
+
+def test_no_internal_terminology(repo_root):
+    this_file = repo_root / "tests" / "test_reusability_guards.py"
+    hits = []
+    for path in _text_files(repo_root):
+        if path == this_file:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for match in INTERNAL_TERMS.finditer(line):
+                hits.append(f"{path.relative_to(repo_root)}:{lineno}: {match.group(0)}")
+    assert hits == [], "Rewrite internal terminology for an external reader"

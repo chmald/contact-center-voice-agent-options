@@ -15,7 +15,7 @@
 
 **Bottom line:** this page is the two-GA-API deep dive. The repo now also includes a third option, a Foundry voice agent public preview; use the root README for the full three-way decision table. Same model family, same browser app, same Python bridge pattern — the practical difference is who manages model deployment, capacity/quota, voice/audio processing, and lifecycle risk.
 
-This page keeps the comparison intentionally narrow: two GA browser voice agents, both deployed to Azure Container Apps, both using managed identity, the same web client, the same shared Python core, and the same reusable agent profile. The only intentional differences are the upstream realtime API bridge and the infrastructure required to provision that API. It is written for the architect choosing between the two GA APIs and for anyone forwarding the comparison to a customer.
+This page keeps the comparison intentionally narrow: two GA browser voice agents, both deployed to Azure Container Apps, both using managed identity, the same web client, the same shared Python core, and the same reusable agent profile. The only intentional differences are the upstream realtime API bridge and the infrastructure required to provision that API. It is written for the architect choosing between the two GA APIs and for anyone sharing the comparison with stakeholders.
 
 ## At a glance
 
@@ -40,7 +40,7 @@ For production today, choose between these two GA API paths. Consider the Foundr
 | Use Voice Live API when... | Use Realtime API when... | Foundry voice agent ![Public preview](./assets/badges/public-preview.svg) when... |
 |---|---|---|
 | You want managed realtime models with no model deployment resource to create. | You need direct control of the deployed model version, deployment name, and upgrade behavior. | You want the agent definition to live as a versioned Foundry asset instead of app-only config. |
-| You prefer per-resource Voice Live limits over per-model Azure OpenAI deployment quota management. | You already have Azure OpenAI realtime quota, know the target region, and want to allocate deployment capacity yourself. | You can accept public preview and are not positioning it as production-ready. |
+| You prefer per-resource Voice Live limits over per-model Azure OpenAI deployment quota management. | You already have Azure OpenAI realtime quota, know the target region, and want to allocate deployment capacity yourself. | You can accept public preview and do not need it to be production-ready yet. |
 | You need Azure neural, HD, or custom voices, plus OpenAI voices. | You need the GA nested Realtime session schema and the OpenAI voice set. | You want Foundry portal traces, stored transcripts/audio, and evaluation hooks. |
 | You want built-in Azure semantic VAD, deep noise suppression, server echo cancellation, and built-in input transcription. | You want WebRTC ephemeral tokens or direct SIP transport on the Realtime API surface. | You are comfortable with Voice Live per-resource limits and no Azure OpenAI deployment quota. |
 | You want Avatar, BYOM, or Foundry Agent Service agent mode from the same Voice Live surface. | You are staying close to an existing Realtime API contact-center implementation and want the smallest upstream contract delta. | You want native Twilio/Teams Phone binding and transfer-to-human options available later, though this demo keeps telephony on the shared bridge. |
@@ -64,7 +64,7 @@ The third example, `examples\foundry-voice-agent\`, is a Foundry Agent Service v
 Capacity-wise, it behaves like Voice Live for this demo: no model deployment and no Azure OpenAI quota, but it shares the resource's Voice Live new-connection and TPM limits when run on the shared platform. Treat it as a preview governance/observability option, not a production replacement for the two GA API paths.
 
 > [!WARNING]
-> The voice agent is public preview. Do not position it as a production replacement for the two GA API paths.
+> The voice agent is public preview. Do not treat it as a production replacement for the two GA API paths.
 
 > [!NOTE]
 > [`assets/comparison-one-pager.pdf`](./assets/comparison-one-pager.pdf) is a concise, one-page export of [`assets/comparison-one-pager.html`](./assets/comparison-one-pager.html), not a reproduction of this longer Markdown deep dive. The HTML/PDF intentionally compare the two GA APIs with a preview callout for the third option. Regenerate from the repo root with `pwsh scripts\export-comparison.ps1` (Microsoft Edge). The print copy disables navigation links to avoid embedding local file paths; the HTML keeps its links.
@@ -271,7 +271,7 @@ After deployment, run the shared tests and load probe from [04-testing.md](04-te
 
 ## <img src="./assets/icons/file.svg" width="28" alt=""/> Sources
 
-Verified 2026-09-25; re-verify model lifecycle, regions, quota, and pricing before customer use.
+Verified 2026-09-25; re-verify model lifecycle, regions, quota, and pricing before production use.
 
 | Topic | Where to re-check |
 |---|---|

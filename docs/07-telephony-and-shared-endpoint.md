@@ -321,7 +321,7 @@ Set the Voice webhook (HTTP POST) to `https://<app>/telephony/twilio/voice`:
 Point one Twilio number (or one SIP Domain) at each app; to compare, change the webhook
 among the **three app URLs** or use three numbers. Each number/SIP Domain has one target at a time; the wrapper prints these URLs but does not configure Twilio Console for you.
 
-**Generic customer pattern:** an existing contact-center platform or SBC reaches ACS through
+**Generic enterprise pattern:** an existing contact-center platform or SBC reaches ACS through
 **Direct Routing**, or any platform that can stream call audio over a WebSocket can be added
 as another adapter in `shared/voiceagent_core/telephony/` without changing the bridge.
 

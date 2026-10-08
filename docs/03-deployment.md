@@ -342,7 +342,7 @@ What to look for:
 - [ ] `Microsoft.App`, `Microsoft.ContainerRegistry`, `Microsoft.CognitiveServices`, `Microsoft.ManagedIdentity`, and `Microsoft.OperationalInsights` are registered or registering.
 - [ ] `$Location` is one of `centralus`, `eastus2`, or `swedencentral` for side-by-side deployment.
 - [ ] `az cognitiveservices usage list -l $Location -o table` has been reviewed for quota and capacity risk.
-- [ ] Any required quota request is filed before a customer-facing build.
+- [ ] Any required quota request is filed before a demo or production build.
 
 ---
 
@@ -782,12 +782,12 @@ az cognitiveservices account purge --name <account-name> --resource-group <delet
 ## Post-deployment checklist
 
 > [!NOTE]
-> Tick every box before a customer walkthrough; the smoke test proves the app, not upstream audio or real calls.
+> Tick every box before a live walkthrough; the smoke test proves the app, not upstream audio or real calls.
 
 - [ ] Voice Live, Realtime API, and Foundry voice agent were deployed to the same Tier-1 region for side-by-side testing.
 - [ ] Browser smoke test passed for all deployed examples.
 - [ ] Local run passed for at least one example.
-- [ ] Load test plan in [04-testing.md](./04-testing.md) is ready before any customer walkthrough.
+- [ ] Load test plan in [04-testing.md](./04-testing.md) is ready before any live walkthrough.
 - [ ] Troubleshooting runbook in [05-troubleshooting.md](./05-troubleshooting.md) is available during the demo.
 - [ ] Teardown command and purge behavior are understood before creating throwaway environments.
 

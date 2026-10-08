@@ -249,7 +249,7 @@ Same steps in `examples\foundry-voice-agent`. `azd up` also creates the agent fr
 
 ## Locked decisions
 
-These are the v1 baseline. Deviate only with an updated decision record and docs.
+These are the v1 baseline. To change one, update this table and the affected docs together.
 
 | # | Decision | Choice | Rationale |
 |---|---|---|---|
@@ -301,7 +301,7 @@ All narrative documentation lives under `docs\`. The repo root holds only this R
 | [`docs\03b-manual-deployment.md`](./docs/03b-manual-deployment.md) | Portal and imperative CLI alternative to the IaC path. |
 | [`docs\04-testing.md`](./docs/04-testing.md) | Functional, load, same-model bake-off, and regression test plan. |
 | [`docs\05-troubleshooting.md`](./docs/05-troubleshooting.md) | Symptom-first troubleshooting guide. |
-| [`docs\06-comparison-one-pager.md`](./docs/06-comparison-one-pager.md) | Detailed Voice Live vs. Realtime comparison and positioning one-pager. |
+| [`docs\06-comparison-one-pager.md`](./docs/06-comparison-one-pager.md) | Detailed Voice Live vs. Realtime comparison and decision guide. |
 | [`docs\07-telephony-and-shared-endpoint.md`](./docs/07-telephony-and-shared-endpoint.md) | Shared Foundry platform, ACS/Twilio/Asterisk/PBX phone channels, RAG, quota comparison, and the phone test plan. |
 | [`docs\10-knowledge-base.md`](./docs/10-knowledge-base.md) | Synthetic knowledge base (40 articles, 30 request records), `knowledge\` azd project for Azure AI Search, and wiring the examples to it. |
 | `knowledge\` | Infra-only azd project: Azure AI Search + synthetic `knowledge` index (postprovision loads it). |

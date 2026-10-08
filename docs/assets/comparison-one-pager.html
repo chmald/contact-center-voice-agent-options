@@ -82,7 +82,7 @@
     </div>
   </div>
 
-  <div class="callout"><strong>Third option:</strong> <a href="../../examples/foundry-voice-agent/README.md">Foundry voice agent</a> is public preview. It stores instructions, tool declarations, voice, greeting, audio settings, versions, traces, and transcripts in a Foundry project; the bridge sends no session config and executes the tools (shared RAG). Its default is the project route <code>/api/projects/&lt;p&gt;/agents/&lt;a&gt;/endpoint/protocols/voice</code>, with managed models and no deployment. It shares Voice Live limits with the Voice Live app in shared-platform mode. Do not position it as production-ready.</div>
+  <div class="callout"><strong>Third option:</strong> <a href="../../examples/foundry-voice-agent/README.md">Foundry voice agent</a> is public preview. It stores instructions, tool declarations, voice, greeting, audio settings, versions, traces, and transcripts in a Foundry project; the bridge sends no session config and executes the tools (shared RAG). Its default is the project route <code>/api/projects/&lt;p&gt;/agents/&lt;a&gt;/endpoint/protocols/voice</code>, with managed models and no deployment. It shares Voice Live limits with the Voice Live app in shared-platform mode. Do not treat it as production-ready.</div>
 
   <h2>Core comparison</h2>
   <table class="compare">
@@ -140,6 +140,6 @@
   </div>
 
   <h2>Sources</h2>
-  <p class="sources">Verified 2026-09-25; local content revised 2026-09-30 (not a new external verification). <a href="../06-comparison-one-pager.md#sources">Full comparison and source list</a>: Voice Live reference, overview, release notes, quotas, regions, pricing; Azure OpenAI Realtime/WebRTC, retirement, quotas, regions, pricing, Retail Prices API. Re-verify lifecycle, regions, quota, and pricing before customer use. [1] retirement conflict; [2] no Voice Live dollars quoted; [3] capacity units observed 2026-09-29 via model catalog/live deployment (usage row labelled RPM counts units); [4] Voice Live 2.1-mini preview; [5] DZS availability conflict; [6] quota page checked 2026-09-28 lists 100 NCPM / &le;120K TPM, but TPM = NCPM &times; 4,000 gives 400K at 100 NCPM (its example uses 30 NCPM = 120K). Confirm effective TPM with support; do not infer 400K from the formula.</p>
+  <p class="sources">Verified 2026-09-25; local content revised 2026-09-30 (not a new external verification). <a href="../06-comparison-one-pager.md#sources">Full comparison and source list</a>: Voice Live reference, overview, release notes, quotas, regions, pricing; Azure OpenAI Realtime/WebRTC, retirement, quotas, regions, pricing, Retail Prices API. Re-verify lifecycle, regions, quota, and pricing before production use. [1] retirement conflict; [2] no Voice Live dollars quoted; [3] capacity units observed 2026-09-29 via model catalog/live deployment (usage row labelled RPM counts units); [4] Voice Live 2.1-mini preview; [5] DZS availability conflict; [6] quota page checked 2026-09-28 lists 100 NCPM / &le;120K TPM, but TPM = NCPM &times; 4,000 gives 400K at 100 NCPM (its example uses 30 NCPM = 120K). Confirm effective TPM with support; do not infer 400K from the formula.</p>
 </body>
 </html>

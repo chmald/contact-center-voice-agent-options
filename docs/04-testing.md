@@ -42,7 +42,7 @@ Test plan for proving the three browser voice agents work, stay reusable, and ca
 | Quality and regression harness | Measure latency, tokens, throughput, and busy responses under concurrency | Before demos and after model/capacity changes | ![Live-tested](./assets/badges/live-tested.svg) 1-session probe only; 4/10/20-session sweeps are not recorded |
 | Same-model bake-off | Compare Voice Live API, Foundry voice agent, and Realtime API with the same prompts and model family | Before presenting results | ![Static only](./assets/badges/static-only.svg) |
 | Observability checks | Confirm app logs and Azure metrics show the evidence you need | Every load-test run | ![Static only](./assets/badges/static-only.svg) |
-| Demo script | Practice the 5-minute customer walkthrough | Day-of-demo dry run | ![Static only](./assets/badges/static-only.svg) |
+| Demo script | Practice the 5-minute walkthrough | Day-of-demo dry run | ![Static only](./assets/badges/static-only.svg) |
 
 ---
 
@@ -91,7 +91,7 @@ What the suite covers:
 | `tests\test_realtime_example.py` | Realtime GA `/openai/v1/realtime` URL with no `api-version`, no `OpenAI-Beta` header, token-scope override, nested GA session schema, optional transcription deployment, GA fake-upstream tool flow, Dockerfile COPY guards, Bicep model deployment guards, and `azure.yaml` remote build guards |
 | `tests\test_foundry_voice_agent_example.py` | Foundry voice-agent URL/auth/session contract, agent-mode audio-only `session.update`, client-executed tool/RAG flow, agent definition creation from `config\agent-profile.json`, and infra/postprovision hook guards |
 | `tests\test_loadtest_probe.py` | Concurrency probe summary math (ready, busy, error, p50/p90 TTFA, response ms, tokens per turn, per-session TPM, aggregate TPM), plus an end-to-end run against a real `uvicorn` app and the fake upstream: greeting drained, turns measured, and the session over the cap reported as `busy` |
-| `tests\test_reusability_guards.py` | No domain leakage into shared or load-test Python, no secret patterns, no personal profile paths (`C:\Users\<name>`), and no customer-identifying terms. The terms are kept out of the repo on purpose: list them one per line in the gitignored `tests\forbidden-terms.local.txt`, or set `FORBIDDEN_TERMS="a,b"`. The check skips when neither is present. |
+| `tests\test_reusability_guards.py` | No domain leakage into shared or load-test Python, no secret patterns, no personal profile paths (`C:\Users\<name>`), no internal authoring or sales-process terminology, and no customer-identifying terms. The terms are kept out of the repo on purpose: list them one per line in the gitignored `tests\forbidden-terms.local.txt`, or set `FORBIDDEN_TERMS="a,b"`. The check skips when neither is present. |
 | `tests\test_retarget_domain.py` | End-to-end retargeting by profile and data file only, proving the example domain is not hardcoded into shared code |
 | **Validation level** | ![Static only](./assets/badges/static-only.svg) All files run offline against in-process fakes; none call Azure |
 
@@ -356,11 +356,11 @@ with real calls. Filter logs by the `channel` field (`browser`, `acs`, `twilio`)
 and narrowband phone results separate.
 
 > [!WARNING]
-> The Asterisk probe and the phone test plan are ![Static only](./assets/badges/static-only.svg) in the CHANGELOG record: the probe was verified against a local server, and no live ACS, Twilio or Asterisk call is recorded. Record your own result before showing phone calls to a customer.
+> The Asterisk probe and the phone test plan are ![Static only](./assets/badges/static-only.svg) in the CHANGELOG record: the probe was verified against a local server, and no live ACS, Twilio or Asterisk call is recorded. Record your own result before demonstrating phone calls to an audience.
 
-## Five-minute customer walkthrough
+## Five-minute walkthrough
 
-| Minute | Action | Talk track |
+| Minute | Action | Presenter notes |
 |---|---|---|
 | 0:00-0:45 | Open all three deployed apps | "Same browser UI, same tools, same profile, same data. Only the upstream API changes." |
 | 0:45-1:30 | Show `/api/info` for all three | "The app reports API, model, voice, and session cap from the deployed config." |
@@ -368,7 +368,7 @@ and narrowband phone results separate.
 | 2:15-3:00 | Start Realtime API, ask the same spoken question | "Realtime API uses an explicit Azure OpenAI deployment sized against quota." |
 | 3:00-3:45 | Type the same configured tool question in all three | "Tools run server-side. Credentials and tool implementation never go to the browser." |
 | 3:45-4:30 | Show metrics panels | "The comparison uses app-side TTFA, response latency, tokens, and TPM, not subjective impressions only." |
-| 4:15-4:40 | Start the Foundry voice agent and show the agent-version/traces positioning | "The agent stores instructions, tools, voice, transcripts, traces, and evaluation hooks in Foundry; the bridge still executes tools so RAG stays shared." |
+| 4:15-4:40 | Start the Foundry voice agent and show agent versions and traces | "The agent stores instructions, tools, voice, transcripts, traces, and evaluation hooks in Foundry; the bridge still executes tools so RAG stays shared." |
 | 4:40-5:00 | Show load-test result table | "Capacity decisions come from p90 TPM and concurrency math, then quota and service limits." |
 
 ### Demo-script validation

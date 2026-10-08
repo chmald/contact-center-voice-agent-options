@@ -124,7 +124,7 @@
         <mxCell id="rs_lg_PREVIEW" value="PUBLIC PREVIEW" style="rounded=1;arcSize=50;html=1;whiteSpace=nowrap;fillColor=#CA5010;strokeColor=#FFFFFF;strokeWidth=1.5;fontColor=#FFFFFF;fontStyle=1;fontSize=9;align=center;verticalAlign=middle;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="307" y="1103" width="96" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="rs_lgt_PREVIEW" value="preview API or feature: say so to the customer" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#605E5C;fontFamily=Segoe UI;" vertex="1" parent="1">
+        <mxCell id="rs_lgt_PREVIEW" value="preview API or feature (not GA)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#605E5C;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="409" y="1102" width="332" height="20" as="geometry" />
         </mxCell>
         <mxCell id="rs_lg_OPTIONAL" value="OPTIONAL" style="rounded=1;arcSize=50;html=1;whiteSpace=nowrap;fillColor=#605E5C;strokeColor=#FFFFFF;strokeWidth=1.5;fontColor=#FFFFFF;fontStyle=1;fontSize=9;align=center;verticalAlign=middle;fontFamily=Segoe UI;" vertex="1" parent="1">
