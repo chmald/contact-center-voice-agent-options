@@ -4,7 +4,11 @@ Change history for the reusable demo pattern. Entries are newest-first.
 
 ---
 
-## [Unreleased] - 2026-10-07
+## [Unreleased] - 2026-10-08
+
+### Added
+
+- MIT `LICENSE` and a testing-only disclaimer (README top warning plus Disclaimer and License sections).
 
 ### Changed
 

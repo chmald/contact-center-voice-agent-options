@@ -19,6 +19,9 @@
   <img src="./docs/assets/badges/static-only.svg" alt="Static-only: ACS and Twilio live calls">
 </p>
 
+> [!WARNING]
+> **For testing and demonstration purposes only.** This is a personal reference demo provided "as is" under the [MIT License](LICENSE), without warranty or support. It is not an official Microsoft product or sample, has not been through a production security review, and is not intended for production use. Review, test, and harden it before reusing any part of it, deploy only to non-production subscriptions, and never use real customer or personal data.
+
 > [!NOTE]
 > **Start here.** This is the front door: it explains the three options, what gets deployed, and the fastest path to a running demo. Building it end to end? Go to [00 — Reproduce this demo](./docs/00-reproduce-this-demo.md). Browser, Search, and voice-agent paths were live-tested on 2026-09-29; ACS and Twilio live calls have not been exercised (see [`CHANGELOG.md`](./CHANGELOG.md)).
 
@@ -385,4 +388,16 @@ The release history for this and later changes is in [CHANGELOG.md](CHANGELOG.md
 
 ---
 
-*Last updated: 2026-10-07*
+## Disclaimer
+
+> [!CAUTION]
+> This project is provided for testing, learning, and demonstration purposes only. It is not an official Microsoft product, sample, or service, and it is not supported under any Microsoft support program. Azure services, APIs, and pricing referenced here change over time — validate against current Microsoft Learn documentation before relying on any detail. Deploying it creates billable Azure resources; you are responsible for their cost, security, and cleanup.
+
+## License
+
+> [!NOTE]
+> Released under the [MIT License](LICENSE).
+
+---
+
+*Last updated: 2026-10-08*
