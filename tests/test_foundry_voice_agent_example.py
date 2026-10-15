@@ -83,7 +83,10 @@ def test_no_session_update_by_default_because_the_agent_owns_the_session(profile
 
 def test_optional_session_update_carries_audio_pipeline_only(profile_path):
     bridge, _ = _bridge(profile_path, VoiceAgentSettings(endpoint="https://d", project_name="p", send_session_config=True))
-    session = bridge.build_session_update()["session"]
+    update = bridge.build_session_update()
+    assert update["type"] == "session.update"
+    session = update["session"]
+    assert "input_audio_echo_cancellation" not in session
     for agent_owned in ("instructions", "tools", "tool_choice", "voice", "temperature"):
         assert agent_owned not in session
     assert session["input_audio_sampling_rate"] == 24000
@@ -201,6 +204,7 @@ def test_agent_definition_is_built_from_the_shared_profile(profile_path):
     assert definition["audio"]["output"] == {"voice": "en-US-Ava:DragonHDLatestNeural", "voice_type": "azure-standard"}
     assert definition["audio"]["input"]["turn_detection"] == {"type": "azure_semantic_vad"}
     assert definition["audio"]["input"]["transcription"] == {"model": "azure-speech"}
+    assert "echo_cancellation" not in definition["audio"]["input"]
     assert definition["greeting"] == {"type": "template", "text": profile["greeting"]}
     assert module.voice_config("marin") == {"voice": "marin", "voice_type": "openai"}
     assert definition["store"] is True

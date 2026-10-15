@@ -20,7 +20,7 @@ sends nothing, so it is kept only for classic agent-mode experiments:
 Differences from the Voice Live example:
 
 - The agent version owns **instructions, tools, voice, greeting, the audio pipeline
-  (turn detection, noise suppression, echo cancellation, transcription), and storage**.
+    (turn detection, noise suppression, transcription), and storage**.
   They are created from ``config/agent-profile.json`` by ``scripts/create-voice-agent.py``.
 - The bridge therefore sends **no session.update and no greeting** by default: Agent
   Service rejects ``response.create`` with ``instructions`` ("Overriding instructions in
@@ -189,7 +189,6 @@ class VoiceAgentBridge(RealtimeStyleBridge):
             "input_audio_sampling_rate": 24000,
             "turn_detection": self._turn_detection_config(),
             "input_audio_noise_reduction": {"type": "azure_deep_noise_suppression"},
-            "input_audio_echo_cancellation": {"type": "server_echo_cancellation"},
             "input_audio_transcription": {"model": self.settings.resolved_transcription_model()},
         }
         return {"type": "session.update", "session": session}

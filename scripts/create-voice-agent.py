@@ -6,7 +6,7 @@ the app connects to the latest version unless ``VOICE_AGENT_VERSION`` pins one.
 
 The agent owns instructions, function tools (client-executed by the shared bridge,
 including the shared ``search_knowledge_base`` RAG tool), voice, the greeting, the
-audio pipeline (Azure semantic VAD, deep noise suppression, echo cancellation,
+audio pipeline (Azure semantic VAD, deep noise suppression,
 transcription - the same settings the Voice Live example sends per session), and
 conversation storage. Agent Service does not accept per-response instruction
 overrides, so the greeting must live on the agent.
@@ -63,7 +63,6 @@ def build_definition(profile_path: Path, model: str, voice: str, store: bool = T
             "input": {
                 "turn_detection": {"type": "azure_semantic_vad"},
                 "noise_reduction": {"type": "azure_deep_noise_suppression"},
-                "echo_cancellation": {"type": "server_echo_cancellation"},
                 "transcription": {"model": transcription},
             },
             "output": voice_config(voice),

@@ -57,10 +57,29 @@ After editing `config\agent-profile.json`, re-run `azd hooks run postprovision` 
 | `VOICE_AGENT_VOICE` | `en-US-Ava:DragonHDLatestNeural` | Stored on the agent |
 | `VOICE_AGENT_API_VERSION` | `2026-07-15` | Voice Live API version used in agent mode |
 | `VOICE_AGENT_ROUTE` | `project` | Foundry portal sample route (`/api/projects/<p>/agents/<a>/endpoint/protocols/voice`, `Foundry-Features: VoiceAgents=V1Preview`), verified live. `voice-live` (older agent-mode route) currently disconnects `kind: voice` agents. |
+| `VOICE_AGENT_PROJECT_API_VERSION` | `2025-11-15-preview` | Project-route API version; independent of `VOICE_AGENT_API_VERSION` |
 | `VOICE_AGENT_SEND_SESSION_CONFIG` | `false` | `true` sends an audio-only `session.update` (experiments only) |
 | `VOICE_AGENT_TURN_DETECTION` | `azure_semantic_vad` | Only with `VOICE_AGENT_SEND_SESSION_CONFIG=true` |
 
 All common settings (`AZURE_LOCATION`, `AZURE_APP_LOCATION`, `MAX_CONCURRENT_SESSIONS`, telephony, search) are in [docs\09-environment-variables.md](../../docs/09-environment-variables.md).
+
+### Session configuration errors
+
+If startup reports `reference_source='client'` requiring `2026-06-01-preview` or later,
+the stored agent audio configuration may be incompatible with the preview service's
+underlying Voice Live session. This example omits explicit echo cancellation as a
+compatibility workaround; noise suppression and turn detection remain enabled.
+Republish the agent with `azd hooks run postprovision` from this example directory.
+If `VOICE_AGENT_VERSION` is pinned, update it to the newly created version.
+
+Use `VOICE_AGENT_ROUTE=project` and `VOICE_AGENT_SEND_SESSION_CONFIG=false`.
+`VOICE_AGENT_API_VERSION` only affects the alternate `voice-live` route; changing it
+does not upgrade the project route's underlying Voice Live session.
+If `The type field of SessionUpdatedMessage message should be 'session.update'`
+persists with session config disabled, it is not caused by a client session update:
+the bridge sends none in that mode. Capture the service error and request ID for
+investigation of the preview service rather than renaming `session.updated`, which
+is a valid server event.
 
 ## Optional: knowledge base and phone channels
 
